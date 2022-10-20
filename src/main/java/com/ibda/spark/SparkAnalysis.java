@@ -36,6 +36,17 @@ public class SparkAnalysis extends AnalysisConst {
     }
 
     /**
+     * 离群点、缺失值处理方法
+     */
+    public enum ProcessMethod{
+        REMOVE,             //简单去除样本或变量，离群或缺失样本比例较低，或该变量的样本缺失值过多
+        REPLACE_WITH_MEAN,  //使用均值、中位数、众数、离群临界值、最邻近正常值替换，仅用于数值类型
+        REPLACE_WITH_MEDIAN,
+        REPLACE_WITH_MODE,
+        REPLACE_WITH_THRESHOLD,
+        REPLACE_WITH_NEAREST
+    }
+    /**
      * 所有描述性统计指标
      */
     public static final DescriptiveTarget[] DESCRIPTIVE_TARGET_ALL = DescriptiveTarget.values();
@@ -117,6 +128,35 @@ public class SparkAnalysis extends AnalysisConst {
      */
     public static Dataset<Row> transVectorColumns(Dataset<Row> source, String[] inputNames, String outputName) {
         return SparkUtil.transVectorColumns(source,inputNames,outputName);
+    }
+
+    /**
+     * 清除重复记录操作
+     * @param source
+     * @return
+     */
+    public static Dataset<Row> removeDuplicates(Dataset<Row> source){
+        return null;
+    }
+
+    /**
+     * 处理离群点
+     * @param source
+     * @param method
+     * @return
+     */
+    public static Dataset<Row> processOutlier(Dataset<Row> source,ProcessMethod method){
+        return null;
+    }
+
+    /**
+     * 处理缺失值
+     * @param source
+     * @param method
+     * @return
+     */
+    public static Dataset<Row> processMissing(Dataset<Row> source,ProcessMethod method){
+        return null;
     }
 
     @Override

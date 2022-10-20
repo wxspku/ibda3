@@ -33,7 +33,7 @@ public class BasicStatisticsTest {
      */
     private boolean isNormalDistribution()  {
         String path = FilePathUtil.getClassRoot() + "/data/stattest.xlsx";
-        Dataset<Row> dataset = stat.readExcel( path, 0, "A2",
+        Dataset<Row> dataset = stat.loadExcel( path, 0, "A2",
                 "id INT NOT NULL,score DOUBLE NOT NULL");
         HypothesisTestResults results = stat.normalDistTest(dataset, "score");
         System.out.println(results);
@@ -82,7 +82,7 @@ public class BasicStatisticsTest {
 
     private void calcDescriptiveStatistics() throws AnalysisException {
         String path = FilePathUtil.getClassRoot() + "/data/stattest.xlsx";
-        Dataset<Row> dataset = stat.readExcel(path, 0, "A2",
+        Dataset<Row> dataset = stat.loadExcel(path, 0, "A2",
                 "id INT NOT NULL,score DOUBLE NOT NULL");
         //使用sql查询汇总数据
         dataset.createOrReplaceTempView("scores");
@@ -134,7 +134,7 @@ public class BasicStatisticsTest {
 
     private Dataset<Row> getExcelDataset() {
         String path = FilePathUtil.getClassRoot() + "/data/stattest.xlsx";
-        Dataset<Row> dataset = stat.readExcel(path, 4, "A2:D31",
+        Dataset<Row> dataset = stat.loadExcel(path, 4, "A2:D31",
                 "id INT NOT NULL," +
                         "chi_score DOUBLE NOT NULL," +
                         "math_score DOUBLE NOT NULL," +
@@ -175,7 +175,7 @@ public class BasicStatisticsTest {
 
     private void FValueAndANOVATestDemo(){
         String path = FilePathUtil.getClassRoot() + "data/anova_dvdplayers.csv";
-        Dataset<Row> dataset = stat.readFile(path, null);
+        Dataset<Row> dataset = stat.loadData(path, null);
         dataset.show();
         Dataset<Row> dvdscore_vector = SparkAnalysis.transVectorColumns(dataset, new String[]{"dvdscore"}, "dvdscore_vector");
         dvdscore_vector.show();

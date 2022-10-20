@@ -22,17 +22,22 @@ public class DescriptiveStatistics {
     double[] sum;
     double[] variance;//方差
 
+    /**
+     *
+     * @param row
+     * @param fields
+     * @return
+     */
     public static DescriptiveStatistics buildStatistics(Row row, String[] fields) {
         DescriptiveStatistics statistics = new DescriptiveStatistics();
-        Arrays.stream(fields).forEach(target -> {
-            Object value = row.getAs(target);
+        Arrays.stream(fields).forEach(field -> {
+            Object value = row.getAs(field);
             try {
-                BeanUtils.setProperty(statistics, target, value);
                 if (value instanceof DenseVector) {
                     DenseVector vector = (DenseVector) value;
-                    BeanUtils.setProperty(statistics, target, vector.toArray());
+                    BeanUtils.setProperty(statistics, field, vector.toArray());
                 } else {
-                    BeanUtils.setProperty(statistics, target, value);
+                    BeanUtils.setProperty(statistics, field, value);
                 }
             } catch (IllegalAccessException e) {
                 e.printStackTrace();

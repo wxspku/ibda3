@@ -10,13 +10,15 @@ import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
 import org.junit.Test;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import static org.apache.spark.sql.types.DataTypes.DoubleType;
 import static org.apache.spark.sql.types.DataTypes.IntegerType;
-import static org.junit.Assert.*;
 
 public class SparkUtilTest {
     @Test
-    public static void main() throws AnalysisException {
+    public void testLoadData() throws AnalysisException {
         SparkSession spark = SparkUtil.buildSparkSession("sparkReadExcel");
         String path = FilePathUtil.getClassRoot() + "/data/stattest.xlsx";
         //add是创建新的StructType，所以不能用StructType.add
@@ -27,28 +29,34 @@ public class SparkUtilTest {
         });
         //"id INT NOT NULL,score DOUBLE NOT NULL"
         System.out.println(schema.toDDL());
-        Dataset<Row> dataset = SparkUtil.sparkExcelRead(spark, path, 0, "A2",
-                "id INT NOT NULL,score DOUBLE NOT NULL");
+        Dataset<Row> dataset = SparkUtil.loadExcel(spark, path, schema.toDDL(),0, "A2");
         dataset.show();
         //输出数据统计信息
         Dataset<Row> score1 = dataset.select("score").sort("score");
         score1.show();
-        /*Row result1 = dataset.select(Summarizer.metrics("mean", "variance")
-                        .summary(new Column("score")).as("summary"))
-                .select("summary.mean", "summary.variance").first();
-        System.out.println("mean = " + result1.<Vector>getAs(0).toString() +
-                ", variance = " + result1.<Vector>getAs(1).toString());
-
-        Row result2 = dataset.select(
-                Summarizer.mean(new Column("score")),
-                Summarizer.variance(new Column("score"))
-        ).first();
-        System.out.println("without weight: mean = " + result2.<Vector>getAs(0).toString() +
-                ", variance = " + result2.<Vector>getAs(1).toString());*/
 
         //使用sql查询数据
-        dataset.createTempView("scores");
+        dataset.createOrReplaceTempView("scores");
         Dataset<Row> score = spark.sql("select score from scores where score>=70");
         score.show();
+
+        Map<String,String> options = new HashMap<>();
+        //读取csv文件
+        Dataset<Row> csv = SparkUtil.loadData(spark, FilePathUtil.getClassRoot() + "/data/anova_dvdplayers.csv", null, null, null);
+        csv.show();
+
+        //读取libsvm文件
+        //option("numFeatures", "780").load("data/mllib/sample_libsvm_data.txt");
+        options.clear();
+        options.put("numFeatures", "780");
+        Dataset<Row> libsvm = SparkUtil.loadData(spark, FilePathUtil.getWorkingDirectory() + "/data/mllib/sample_libsvm_data.txt", SparkUtil.LIBSVM_FORMAT, options, null);
+        libsvm.show();
+
+        //读取图像目录 .option("dropInvalid", true).load("data/mllib/images/origin/kittens")
+        options.clear();
+        options.put("dropInvalid", "true");
+        Dataset<Row> images = SparkUtil.loadData(spark, FilePathUtil.getWorkingDirectory() + "data/mllib/images/origin/kittens", SparkUtil.IMAGE_FORMAT, options, null);
+        images.show();
+
     }
 }

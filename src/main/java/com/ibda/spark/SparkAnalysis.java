@@ -6,56 +6,10 @@ import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
 
+import java.util.Map;
 import java.util.UUID;
 
 public class SparkAnalysis extends AnalysisConst {
-
-
-    protected SparkSession spark = null;
-
-    public SparkSession getSpark() {
-        return spark;
-    }
-
-    protected SparkAnalysis(String appName){
-        if (appName == null){
-            appName = this.getClass().getSimpleName() + "_" + UUID.randomUUID();
-        }
-        this.spark = SparkUtil.buildSparkSession(appName);
-    }
-
-    public Dataset<Row> readExcel(String path){
-        return readExcel(path,0,null,null);
-    }
-
-    public Dataset<Row> readExcel(String path, int sheetIndex, String ddl){
-        return readExcel(path,sheetIndex,null,ddl);
-    }
-
-    public Dataset<Row> readExcel(String path, int sheetIndex, String range, String ddl){
-        return SparkUtil.sparkExcelRead(spark,path,sheetIndex,range,ddl);
-    }
-
-    public Dataset<Row> readFile(String path, String ddl){
-        return SparkUtil.sparkReadFile(spark,path,ddl);
-    }
-    /**
-     *
-     * @param source
-     * @param inputNames
-     * @param outputName
-     * @return
-     */
-    public static Dataset<Row> transVectorColumns(Dataset<Row> source, String[] inputNames, String outputName) {
-        return SparkUtil.transVectorColumns(source,inputNames,outputName);
-    }
-
-    @Override
-    protected void finalize() throws Throwable {
-        super.finalize();
-        spark.stop();
-    }
-
     /**
      * 描述性统计指标，不要改变拼写及大小写，名称需与DescriptiveStatistics的字段一致
      */
@@ -97,4 +51,79 @@ public class SparkAnalysis extends AnalysisConst {
             DescriptiveTarget.std,
             DescriptiveTarget.sum
     };
+
+    protected SparkSession spark = null;
+
+    public SparkSession getSpark() {
+        return spark;
+    }
+
+    protected SparkAnalysis(String appName){
+        if (appName == null){
+            appName = this.getClass().getSimpleName() + "_" + UUID.randomUUID();
+        }
+        this.spark = SparkUtil.buildSparkSession(appName);
+    }
+
+    /**
+     *
+     * @param path
+     * @return
+     */
+    public Dataset<Row> loadData(String path){
+        return loadData(path,null);
+    }
+
+    /**
+     * 简版读取文件数据，如需完整的参数控制
+     * @param path
+     * @param ddl
+     * @return
+     */
+    public Dataset<Row> loadData(String path, String ddl){
+        return SparkUtil.loadData(spark,path,ddl);
+    }
+
+    /**
+     *
+     * @param path
+     * @param format
+     * @param options
+     * @param ddl
+     * @return
+     */
+    public Dataset<Row> loadData(String path, String format, Map<String,String> options, String ddl){
+        return SparkUtil.loadData(spark,path,format,options,ddl);
+    }
+    /**
+     * 读取Excel数据
+     * @param path
+     * @param sheetIndex
+     * @param range
+     * @param ddl
+     * @return
+     */
+    public Dataset<Row> loadExcel(String path, int sheetIndex, String range, String ddl){
+        return SparkUtil.loadExcel(spark,path,ddl,sheetIndex,range);
+    }
+
+
+    /**
+     *
+     * @param source
+     * @param inputNames
+     * @param outputName
+     * @return
+     */
+    public static Dataset<Row> transVectorColumns(Dataset<Row> source, String[] inputNames, String outputName) {
+        return SparkUtil.transVectorColumns(source,inputNames,outputName);
+    }
+
+    @Override
+    protected void finalize() throws Throwable {
+        super.finalize();
+        spark.stop();
+    }
+
+
 }

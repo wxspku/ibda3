@@ -51,9 +51,10 @@ public class BasicStatistics extends SparkAnalysis {
         else{
             summary = dataset.select(Summarizer.metrics(metrics).summary(new Column(featureVectorColumn), new Column(weightColumn)));
         }
-        //两层向量[统计指标1结果，统计指标2结果，...],除count外，每个结果又是一个向量,
+        //两层向量[[统计指标1结果，统计指标2结果，...]],除count外，每个结果又是一个向量,
         // [[30,[35.0,61.0,60.0],[99.0,100.0,99.0],[75.21666666666667,81.93333333333334,81.86666666666667],[2256.5,2458.0,2456.0]]]
         Row row = summary.head();
+        //解耦Row首层
         GenericRowWithSchema genericRow = (GenericRowWithSchema)row.get(0);
         DescriptiveStatistics statistics = DescriptiveStatistics.buildStatistics(genericRow, metrics);
 

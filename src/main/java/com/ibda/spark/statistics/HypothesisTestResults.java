@@ -16,6 +16,11 @@ public class HypothesisTestResults {
     long[] degreesOfFreedom;  //自由度
     double[] statistics; //统计量
 
+    /**
+     *
+     * @param resultRow
+     * @return
+     */
     public static HypothesisTestResults buildTestResults(Row resultRow) {
         HypothesisTestResults results = null;
         if (resultRow.get(0) instanceof Double){ //KS TEST返回pValue，statistics的单个元素

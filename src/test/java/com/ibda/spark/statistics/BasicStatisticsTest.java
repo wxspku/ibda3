@@ -1,6 +1,7 @@
 package com.ibda.spark.statistics;
 
 import com.ibda.spark.SparkAnalysis;
+import com.ibda.util.AnalysisConst;
 import com.ibda.util.FilePathUtil;
 import org.apache.spark.ml.linalg.DenseMatrix;
 import org.apache.spark.ml.linalg.Vector;
@@ -102,7 +103,7 @@ public class BasicStatisticsTest {
         Dataset<Row> score_summary = dataset.describe("score");
         score_summary.show();
         //colum to vector, then Summarizer vector
-        Dataset<Row> vectorDataset = SparkAnalysis.transVectorColumns(dataset, new String[]{"score"}, "score_vector");
+        Dataset<Row> vectorDataset = SparkAnalysis.assembleVector(dataset, new String[]{"score"}, "score_vector");
         vectorDataset.show();
         //向量的normL1 = sum , normL2 = sqrt(Σx^2*w)
         Row result1 = vectorDataset.select(Summarizer.metrics("mean", "variance","normL1","normL2","sum")
@@ -127,7 +128,7 @@ public class BasicStatisticsTest {
         DenseMatrix pearson = stat.getCorrelationMatrix(dataset, new String[]{"chi_score", "math_score", "eng_score"});
         System.out.println("Pearson correlation matrix:\n" + pearson.toString());
 
-        DenseMatrix spearman = stat.getCorrelationMatrix(dataset, new String[]{"chi_score", "math_score", "eng_score"}, SparkAnalysis.CorrelationMethod.spearman);
+        DenseMatrix spearman = stat.getCorrelationMatrix(dataset, new String[]{"chi_score", "math_score", "eng_score"}, AnalysisConst.CorrelationMethod.spearman);
         System.out.println("Spearman correlation matrix:\n" + spearman.toString());
 
     }
@@ -177,7 +178,7 @@ public class BasicStatisticsTest {
         String path = FilePathUtil.getClassRoot() + "data/anova_dvdplayers.csv";
         Dataset<Row> dataset = stat.loadData(path, null);
         dataset.show();
-        Dataset<Row> dvdscore_vector = SparkAnalysis.transVectorColumns(dataset, new String[]{"dvdscore"}, "dvdscore_vector");
+        Dataset<Row> dvdscore_vector = SparkAnalysis.assembleVector(dataset, new String[]{"dvdscore"}, "dvdscore_vector");
         dvdscore_vector.show();
 
         System.out.println("FValue Test --------------------------");

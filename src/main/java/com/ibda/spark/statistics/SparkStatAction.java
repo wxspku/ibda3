@@ -17,7 +17,7 @@ public abstract class SparkStatAction {
      * @return
      */
     public  Dataset<Row> doAction(Dataset<Row> dataset, String[] featureColumns, String specialColumn){
-        Dataset<Row> vectorDataset = SparkUtil.transVectorColumns(dataset,featureColumns, FEATURES_VECTOR_COL);
+        Dataset<Row> vectorDataset = SparkUtil.assembleVector(dataset,featureColumns, FEATURES_VECTOR_COL);
         return doAction(vectorDataset,FEATURES_VECTOR_COL,specialColumn);
     }
     /**

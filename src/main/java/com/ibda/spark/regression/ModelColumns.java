@@ -3,34 +3,34 @@ package com.ibda.spark.regression;
 import java.util.Arrays;
 
 public class ModelColumns {
-    String[] featureColumns; //特征属性列表
-    String[] categoryCols;   //特征属性中的分类属性，需要进行OneHotEncoder处理
+    String[] noneCategoryFeatures; //特征属性列表
+    String[] categoryFeatures;   //特征属性中的分类属性，需要进行OneHotEncoder处理
     String labelCol;         //观察结果列
     String predictCol;       //预测结果列
     String probabilityCol;   //或然列，逻辑回归时的概率值
 
-    public ModelColumns(String[] featureColumns, String[] categoryCols, String labelCol, String predictCol, String probabilityCol) {
-        this.featureColumns = featureColumns;
-        this.categoryCols = categoryCols;
+    public ModelColumns(String[] noneCategoryFeatures, String[] categoryFeatures, String labelCol, String predictCol, String probabilityCol) {
+        this.noneCategoryFeatures = noneCategoryFeatures;
+        this.categoryFeatures = categoryFeatures;
         this.labelCol = labelCol;
         this.predictCol = predictCol;
         this.probabilityCol = probabilityCol;
     }
 
-    public String[] getFeatureColumns() {
-        return featureColumns;
+    public String[] getNoneCategoryFeatures() {
+        return noneCategoryFeatures;
     }
 
-    public void setFeatureColumns(String[] featureColumns) {
-        this.featureColumns = featureColumns;
+    public void setNoneCategoryFeatures(String[] noneCategoryFeatures) {
+        this.noneCategoryFeatures = noneCategoryFeatures;
     }
 
-    public String[] getCategoryCols() {
-        return categoryCols;
+    public String[] getCategoryFeatures() {
+        return categoryFeatures;
     }
 
-    public void setCategoryCols(String[] categoryCols) {
-        this.categoryCols = categoryCols;
+    public void setCategoryFeatures(String[] categoryFeatures) {
+        this.categoryFeatures = categoryFeatures;
     }
 
     public String getLabelCol() {
@@ -60,8 +60,8 @@ public class ModelColumns {
     @Override
     public String toString() {
         return "ModelColumns{" +
-                "featureColumns=" + Arrays.toString(featureColumns) +
-                ", categoryCols=" + Arrays.toString(categoryCols) +
+                "featureColumns=" + Arrays.toString(noneCategoryFeatures) +
+                ", categoryCols=" + Arrays.toString(categoryFeatures) +
                 ", labelCol='" + labelCol + '\'' +
                 ", predictCol='" + predictCol + '\'' +
                 ", probabilityCol='" + probabilityCol + '\'' +

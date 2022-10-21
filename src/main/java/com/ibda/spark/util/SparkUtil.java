@@ -207,7 +207,7 @@ public class SparkUtil {
      * @param outputName
      * @return
      */
-    public static Dataset<Row> transVectorColumns(Dataset<Row> source, String[] inputNames, String outputName) {
+    public static Dataset<Row> assembleVector(Dataset<Row> source, String[] inputNames, String outputName) {
         VectorAssembler assembler = new VectorAssembler()
                 .setInputCols(inputNames)//new String[]{"score"}
                 .setOutputCol(outputName);//"score_vector"

@@ -10,58 +10,6 @@ import java.util.Map;
 import java.util.UUID;
 
 public class SparkAnalysis extends AnalysisConst {
-    /**
-     * 描述性统计指标，不要改变拼写及大小写，名称需与DescriptiveStatistics的字段一致
-     */
-    public enum DescriptiveTarget{
-        count,
-        min,
-        max,
-        mean,
-        normL1, //Σ(|x|)
-        normL2, //sqrt(Σx^2*w)
-        numNonZeros,
-        std,    //样本标准差
-        sum,
-        variance //方差
-    }
-
-    /**
-     * 相关矩阵计算方法
-     */
-    public enum CorrelationMethod
-    {
-        pearson, //default
-        spearman
-    }
-
-    /**
-     * 离群点、缺失值处理方法
-     */
-    public enum ProcessMethod{
-        REMOVE,             //简单去除样本或变量，离群或缺失样本比例较低，或该变量的样本缺失值过多
-        REPLACE_WITH_MEAN,  //使用均值、中位数、众数、离群临界值、最邻近正常值替换，仅用于数值类型
-        REPLACE_WITH_MEDIAN,
-        REPLACE_WITH_MODE,
-        REPLACE_WITH_THRESHOLD,
-        REPLACE_WITH_NEAREST
-    }
-    /**
-     * 所有描述性统计指标
-     */
-    public static final DescriptiveTarget[] DESCRIPTIVE_TARGET_ALL = DescriptiveTarget.values();
-
-    /**
-     * 常用描述性统计指标
-     */
-    public static final DescriptiveTarget[] DESCRIPTIVE_TARGET_COMMON = new DescriptiveTarget[]{
-            DescriptiveTarget.count,
-            DescriptiveTarget.min,
-            DescriptiveTarget.max,
-            DescriptiveTarget.mean,
-            DescriptiveTarget.std,
-            DescriptiveTarget.sum
-    };
 
     protected SparkSession spark = null;
 
@@ -126,37 +74,64 @@ public class SparkAnalysis extends AnalysisConst {
      * @param outputName
      * @return
      */
-    public static Dataset<Row> transVectorColumns(Dataset<Row> source, String[] inputNames, String outputName) {
-        return SparkUtil.transVectorColumns(source,inputNames,outputName);
+    public static Dataset<Row> assembleVector(Dataset<Row> source, String[] inputNames, String outputName) {
+        return SparkUtil.assembleVector(source,inputNames,outputName);
     }
 
     /**
-     * 清除重复记录操作
-     * @param source
+     * TODO 清除重复记录操作
+     * @param source   原始数据集
+     * @param columns  需处理的列表，即判断重复样本时不考虑列表之外的数据列，null代表所有列
      * @return
      */
-    public static Dataset<Row> removeDuplicates(Dataset<Row> source){
-        return null;
+    public static Dataset<Row> removeDuplicates(Dataset<Row> source, String[] columns){
+        return source;
     }
 
     /**
-     * 处理离群点
+     * 处理离群点,低于SAMPLE_REMOVE_THRESHOLD(0.05)比例时，离群点样本删除
      * @param source
+     * @param columns
      * @param method
      * @return
      */
-    public static Dataset<Row> processOutlier(Dataset<Row> source,ProcessMethod method){
-        return null;
+    public static Dataset<Row> processOutlier(Dataset<Row> source, String[] columns, OutlierProcessMethod method){
+        return processOutlier(source,columns,method, OUTLIER_SAMPLE_REMOVE_THRESHOLD);
+    }
+    /**
+     * TODO 处理离群点,原则上离群点记录数只占样本数的数据较低时，可以简单去除，否则可以使用替代法,如果不需要删除，则将阈值直接设为0
+     * @param source         原始数据集
+     * @param columns        需处理的字段列表，只考虑本列表字段的离群点，null代表所有列
+     * @param method         离群点比例超出truncateRatio时，离群点的处理方法
+     * @param removeRatioThreshold  样本删除比例阈值，离群点低于该样本比例时，直接删除离群点，离群点的比例需考虑关注字段的所有离群点比例
+     * @return
+     */
+    public static Dataset<Row> processOutlier(Dataset<Row> source, String[] columns, OutlierProcessMethod method, double removeRatioThreshold){
+        return source;
     }
 
     /**
-     * 处理缺失值
+     * 使用缺省阈值处理缺失值
      * @param source
+     * @param columns
      * @param method
      * @return
      */
-    public static Dataset<Row> processMissing(Dataset<Row> source,ProcessMethod method){
-        return null;
+    public static Dataset<Row> processMissing(Dataset<Row> source,String[] columns, OutlierProcessMethod method){
+        return processMissing(source,columns,method, OUTLIER_SAMPLE_REMOVE_THRESHOLD, MISSING_VALUE_FEATURE_REMOVE_THRESHOLD);
+    }
+
+    /**
+     * TODO 处理缺失值，样本缺失值可以参照离群点处理，包含大量缺失值的字段，需要删除,如果不需要删除，则将前一个阈值设为0，后一个阈值设为1
+     * @param source
+     * @param columns        需处理的字段列表，只考虑本列表字段的离群点，null代表所有列
+     * @param method
+     * @param sampleRemoveRatioThreshold
+     * @param featureRemoveRatioThreshold
+     * @return
+     */
+    public static Dataset<Row> processMissing(Dataset<Row> source, String[] columns, OutlierProcessMethod method, double sampleRemoveRatioThreshold, double featureRemoveRatioThreshold){
+        return source;
     }
 
     @Override

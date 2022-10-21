@@ -29,7 +29,7 @@ public class BasicStatistics extends SparkAnalysis {
      * @return
      */
     public DescriptiveStatistics getDescriptiveStatistics(Dataset<Row> dataset, String[] featureColumns, String weightColumn, DescriptiveTarget[] targets){
-        Dataset<Row> vectorDataset = transVectorColumns(dataset,featureColumns, FEATURES_VECTOR_COL);
+        Dataset<Row> vectorDataset = assembleVector(dataset,featureColumns, FEATURES_VECTOR_COL);
         return getDescriptiveStatistics(vectorDataset,FEATURES_VECTOR_COL,weightColumn , targets);
     }
 
@@ -84,7 +84,7 @@ public class BasicStatistics extends SparkAnalysis {
      * @return
      */
     public DenseMatrix getCorrelationMatrix(Dataset<Row> dataset,String[] featureColumns,CorrelationMethod method){
-        Dataset<Row> vectorDataset = transVectorColumns(dataset,featureColumns, FEATURES_VECTOR_COL);
+        Dataset<Row> vectorDataset = assembleVector(dataset,featureColumns, FEATURES_VECTOR_COL);
         return getCorrelationMatrix(vectorDataset,FEATURES_VECTOR_COL,method);
     }
 

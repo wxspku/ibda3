@@ -1,6 +1,7 @@
 package com.ibda.spark.regression;
 
 import com.ibda.spark.SparkAnalysis;
+import com.ibda.spark.statistics.BasicStatistics;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.spark.ml.PredictionModel;
 import org.apache.spark.ml.feature.OneHotEncoder;
@@ -15,10 +16,10 @@ import java.util.stream.Collectors;
 /**
  * Spark回归，支持训练、检测、预测
  */
-public abstract class SparkRegression extends SparkAnalysis {
+public abstract class SparkRegression extends BasicStatistics {
 
-    protected static final String REGRESSION_FEATURES_VECTOR = "regression_features_vector";
-    protected static final String VECTOR_SUFFIX = "_vector";
+    public static final String REGRESSION_FEATURES_VECTOR = "regression_features_vector";
+    public static final String VECTOR_SUFFIX = "_vector";
 
     public static class RegressionSummary {
 

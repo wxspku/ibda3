@@ -1,7 +1,9 @@
 package com.ibda.spark.regression;
 
+import com.ibda.util.AnalysisConst;
 import com.ibda.util.FilePathUtil;
 import org.apache.spark.ml.PredictionModel;
+import org.apache.spark.ml.linalg.DenseMatrix;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.junit.After;
@@ -34,6 +36,10 @@ public class LogicRegressionTest {
     @Test
     public void preProcess() {
         Dataset<Row> processed = regression.preProcess(source, modelColumns);
+        DenseMatrix matrix = regression.getCorrelationMatrix(processed,
+                regression.REGRESSION_FEATURES_VECTOR,
+                AnalysisConst.CorrelationMethod.pearson);
+        System.out.println(matrix);
         processed.show();
     }
 

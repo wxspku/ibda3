@@ -75,6 +75,13 @@
             <systemPath>D:/Program Files/IBM/SPSS/Statistics/24/spssjavaplugin.jar</systemPath>
             <scope>system</scope>
         </dependency>
+        <!-- https://mvnrepository.com/artifact/cn.hutool/hutool-all -->
+        <dependency>
+            <groupId>cn.hutool</groupId>
+            <artifactId>hutool-all</artifactId>
+            <version>5.8.9</version>
+        </dependency>
+
         <!-- https://mvnrepository.com/artifact/junit/junit -->
         <dependency>
             <groupId>junit</groupId>

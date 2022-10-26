@@ -4,9 +4,10 @@ import cn.hutool.core.util.ReflectUtil;
 import com.ibda.spark.statistics.BasicStatistics;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.hadoop.shaded.org.apache.commons.beanutils.BeanUtils;
+import org.apache.spark.ml.PipelineModel;
 import org.apache.spark.ml.PredictionModel;
-import org.apache.spark.ml.feature.OneHotEncoder;
-import org.apache.spark.ml.feature.OneHotEncoderModel;
+import org.apache.spark.ml.param.Param;
+import org.apache.spark.ml.param.ParamMap;
 import org.apache.spark.ml.util.MLWritable;
 import org.apache.spark.mllib.evaluation.BinaryClassificationMetrics;
 import org.apache.spark.mllib.evaluation.MulticlassMetrics;
@@ -19,29 +20,46 @@ import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.*;
-import java.util.stream.Collectors;
 
 /**
  * Spark回归，支持训练、检测、预测
  */
 public abstract class SparkRegression extends BasicStatistics {
 
-    public static final String VECTOR_SUFFIX = "_vector";
+    public abstract static class RegressionHyperModel {
 
-    public abstract static class RegressionResult {
-        protected static final String[] EXCLUDE_METHODS = new String[]{"getClass","toString","hashCode","wait","notify","notifyAll","asBinary"};
-        RegressionResult(PredictionModel model){
-            this.model = model;
+        public static final String PREDICTIONS_KEY = "predictions";
+
+        protected static final String[] EXCLUDE_METHODS =
+                new String[]{"getClass","toString","hashCode","wait","notify","notifyAll","asBinary"};
+
+        public RegressionHyperModel(PredictionModel model, PipelineModel preProcessModel) {
+            this(model,preProcessModel,null);
         }
+
+        public RegressionHyperModel(PredictionModel model, PipelineModel preProcessModel,ModelColumns modelColumns) {
+            this.model = model;
+            this.preProcessModel = preProcessModel;
+            this.modelColumns = modelColumns;
+        }
+
         /**
          * 训练好的回归模型
          */
         PredictionModel model = null;
+
+        /**
+         * 数据预处理的PipelineModel，在训练回归模型时，同时使用训练数据训练预处理模型
+         */
+        PipelineModel preProcessModel = null;
         /**
          *带预测结果列的数据集
          */
         Dataset<Row> predictions = null;
-
+        /**
+         * 模型列设置
+         */
+        ModelColumns modelColumns = null;
         /**
          * 系数列表，List的每个元素为1套完整的系数，多元逻辑回归会返回多套系数
          */
@@ -55,6 +73,14 @@ public abstract class SparkRegression extends BasicStatistics {
 
         public PredictionModel getModel() {
             return model;
+        }
+
+        public PipelineModel getPreProcessModel() {
+            return preProcessModel;
+        }
+
+        public ModelColumns getModelColumns() {
+            return modelColumns;
         }
 
         public Dataset<Row> getPredictions() {
@@ -73,8 +99,11 @@ public abstract class SparkRegression extends BasicStatistics {
 
         @Override
         public String toString() {
-            return "RegressionResult{" +
+            return "RegressionHyperModel{" +
                     "model=" + model +
+                    ", preProcessModel=" + preProcessModel +
+                    ", predictions=" + predictions +
+                    ", modelColumns=" + modelColumns +
                     ", coefficientsList=" + coefficientsList +
                     ", trainingMetrics=" + trainingMetrics +
                     '}';
@@ -130,15 +159,27 @@ public abstract class SparkRegression extends BasicStatistics {
             return metrics;
         }
 
+        /**
+         *
+         * @param path
+         * @throws IOException
+         */
         public void saveModel(String path)  throws IOException {
             if (model instanceof MLWritable){
                 ((MLWritable)model).write().overwrite().save(path);
                 return;
             }
             throw new RuntimeException("未实现的接口MLWritable.save(path)");
-            //if (Model)
         }
 
+        /**
+         * 使用内部的Model、ModelColumns、PipelineModel评估模型，其中predictions条目表示预测结果
+         * @param evaluatingData
+         * @return
+         */
+        public Map<String,Object> evaluate(Dataset<Row> evaluatingData){
+            return evaluate(evaluatingData,modelColumns,preProcessModel);
+        }
 
         /**
          * 评估模型，返回评估的性能指标，其中predictions条目表示预测结果
@@ -147,8 +188,46 @@ public abstract class SparkRegression extends BasicStatistics {
          * @param modelCols
          * @return
          */
-        public abstract Map<String,Object> evaluate(Dataset<Row> evaluatingData, ModelColumns modelCols);
+        public Map<String,Object> evaluate(Dataset<Row> evaluatingData, ModelColumns modelCols){
+            return evaluate(evaluatingData,modelCols,preProcessModel);
+        }
 
+        /**
+         * 评估模型，返回评估的性能指标，其中predictions条目表示预测结果
+         * @param evaluatingData
+         * @param modelCols
+         * @param preProcessModel
+         * @return
+         */
+        public abstract Map<String,Object> evaluate(Dataset<Row> evaluatingData, ModelColumns modelCols,PipelineModel preProcessModel);
+
+        /**
+         * 使用内部的预测模型，modelCols、preProcessModel预测数据集
+         * @param predictData
+         * @return
+         */
+        public Dataset<Row> predict(Dataset<Row> predictData) {
+            return predict(predictData,modelColumns,preProcessModel);
+        }
+
+        /**
+         * 使用内部的预测模型，preProcessModel、外部的modelCols预测数据集
+         * @param predictData
+         * @param modelCols
+         * @return
+         */
+        public Dataset<Row> predict(Dataset<Row> predictData,  ModelColumns modelCols) {
+            return predict(predictData,modelCols,preProcessModel);
+        }
+
+        /**
+         * 使用内部的预测模型，外部的modelCols、preProcessModel预测数据集
+         * @param predictData
+         * @param modelCols
+         * @param preProcessModel
+         * @return
+         */
+        public abstract Dataset<Row> predict(Dataset<Row> predictData, ModelColumns modelCols, PipelineModel preProcessModel);
 
     }
 
@@ -157,71 +236,48 @@ public abstract class SparkRegression extends BasicStatistics {
     }
 
     /**
-     * TODO 可以转换为Pipeline，形成一个统一的转换模型，对训练集、测试集、预测集进行统一的转换，否则会导致错误
-     * requirement failed: BLAS.dot(x: Vector, y:Vector) was given Vectors with non-matching sizes: x.size = 11, y.size = 12
-     * https://www.codenong.com/58773455/
-     * 根据回归字段设置进行数据预处理，处理包括添加所需字段、类型字段编码，其他通用预处理(离群值、缺省值处理)暂不包括
-     * spark自动添加预测相关列，无需外部添加
-     * @param dataset
+     * 训练回归模型，同时使用训练集数据训练数据预处理模型
+     * @param trainingData
      * @param modelCols
+     * @param params
      * @return
      */
-    public static Dataset<Row> preProcess(Dataset<Row> dataset, ModelColumns modelCols) {
-        String[] columns = dataset.columns();
-        if (ArrayUtils.contains(columns, modelCols.featuresCol)){
-            return dataset;
+    public RegressionHyperModel fit(Dataset<Row> trainingData, ModelColumns modelCols, Map<String, Object> params){
+        PipelineModel preProcessModel = modelCols.fit(trainingData);
+        return fit(trainingData, modelCols,preProcessModel,params);
+    }
+
+    protected ParamMap buildParams(String parent, Map<String, Object> params){
+        if ((params == null || params.isEmpty())){
+            return ParamMap.empty();
         }
-        //处理分类列
-        Dataset<Row> encoded = dataset;
-        String[] categoryFeatureVectors = null;
-        String[] categoryFeatures = modelCols.categoryFeatures;
-        String[] noneCategoryFeatures = modelCols.noneCategoryFeatures;
-        if (categoryFeatures != null) {
-            categoryFeatureVectors = new String[categoryFeatures.length];
-            Arrays.stream(categoryFeatures).map(item -> item + VECTOR_SUFFIX)
-                    .collect(Collectors.toList())
-                    .toArray(categoryFeatureVectors);
-            OneHotEncoder encoder = new OneHotEncoder()
-                    .setInputCols(categoryFeatures)
-                    .setOutputCols(categoryFeatureVectors)
-                    .setHandleInvalid("error");
-            OneHotEncoderModel model = encoder.fit(dataset);
-            encoded = model.transform(dataset);
-        }
-        //合并特征属性
-        String[] features = new String[(categoryFeatures == null ? 0 : categoryFeatures.length) +
-                (noneCategoryFeatures == null ? 0 : noneCategoryFeatures.length)];
-        if (categoryFeatureVectors != null) {
-            System.arraycopy(categoryFeatureVectors, 0, features, 0, categoryFeatureVectors.length);
-        }
-        if (noneCategoryFeatures != null) {
-            System.arraycopy(noneCategoryFeatures, 0, features, categoryFeatureVectors.length, noneCategoryFeatures.length);
-        }
-        //把属性列合并为vector列
-        Dataset<Row> result = assembleVector(encoded, features, modelCols.featuresCol);
-        return result.select(modelCols.labelCol, modelCols.featuresCol);
+        ParamMap paramMap = new ParamMap();
+        params.entrySet().stream().forEach(entry->{
+            Param param = new Param(parent,entry.getKey(),null);
+            paramMap.put(param,entry.getValue());
+        });
+        return paramMap;
     }
 
     /**
-     * @param trainingData
-     * @param modelCols
+     * @param trainingData      原始训练集
+     * @param modelCols         模型分列设置
+     * @param preProcessModel   数据预处理模型，需要先进行预训练，使用ModelColumns.fit方法进行训练
      * @param params    训练参数，根据回归类型及回归算法不同，参数名称也有所不同，具体参见spark文档
      * @return
      */
-    public abstract RegressionResult fit(Dataset<Row> trainingData, ModelColumns modelCols, Map<String, Object> params);
-
-
-
+    public abstract RegressionHyperModel fit(Dataset<Row> trainingData, ModelColumns modelCols, PipelineModel preProcessModel, Map<String, Object> params);
 
     /**
      * 预测
      *
-     * @param model
      * @param predictData
      * @param modelCols
+     * @param preProcessModel
+     * @param model
      * @return
      */
-    public abstract Dataset<Row> predict(PredictionModel model, Dataset<Row> predictData, ModelColumns modelCols);
+    public abstract Dataset<Row> predict(Dataset<Row> predictData, ModelColumns modelCols, PipelineModel preProcessModel, PredictionModel model);
 
     /**
      * 预测单条数据

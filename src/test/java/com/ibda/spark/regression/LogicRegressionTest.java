@@ -66,12 +66,12 @@ public class LogicRegressionTest {
 
         //训练
         System.out.println("训练二元逻辑回归模型，同时训练预处理模型------------------");
-        SparkRegression.RegressionHyperModel result = regression.fit(training, modelColumns, param);
+        RegressionHyperModel result = regression.fit(training, modelColumns, param);
         System.out.println("训练模型结果及性能\n:" + result);
         //评估
         Map<String, Object> metrics = result.evaluate(testing);
         System.out.println("评估模型性能\n:" + metrics);
-        Dataset<Row> tested = (Dataset<Row>)metrics.get(SparkRegression.RegressionHyperModel.PREDICTIONS_KEY);
+        Dataset<Row> tested = (Dataset<Row>)metrics.get(RegressionHyperModel.PREDICTIONS_KEY);
         tested.show();
         //预测
         Dataset<Row> predicting = bankloans.filter("default is null");
@@ -86,7 +86,7 @@ public class LogicRegressionTest {
         System.out.println("保存及加载模型："  + modelPath);
         result.saveModel(modelPath);
 
-        SparkRegression.RegressionHyperModel result3= LogicRegression.LogicRegressionHyperModel.loadFromModelFile(modelPath);
+        RegressionHyperModel result3= LogicRegressionHyperModel.loadFromModelFile(modelPath);
         Map<String, Object> metrics2 = result3.evaluate(testing, modelColumns,pipelineModel );
         System.out.println("评估存储模型性能\n:" + metrics2);
 
@@ -103,7 +103,7 @@ public class LogicRegressionTest {
         Dataset<Row> libsvm_testing = libsvmDatasets[1];
         System.out.println(String.format("记录总数：%1$s,训练集大小：%2$s,测试集大小：%3$s",libsvm.count(),libsvm_training.count(),libsvm_testing.count()));
 
-        SparkRegression.RegressionHyperModel result2 = regression.fit(libsvm_training,MODEL_COLUMNS_DEFAULT, param);
+        RegressionHyperModel result2 = regression.fit(libsvm_training,MODEL_COLUMNS_DEFAULT, param);
         System.out.println("训练多元逻辑回归模型完成：" + result2);
         result2.getPredictions().show();
 

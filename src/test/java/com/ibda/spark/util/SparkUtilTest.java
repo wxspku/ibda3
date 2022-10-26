@@ -57,6 +57,9 @@ public class SparkUtilTest {
         options.put("dropInvalid", "true");
         Dataset<Row> images = SparkUtil.loadData(spark, FilePathUtil.getWorkingDirectory() + "data/mllib/images/origin/kittens", SparkUtil.IMAGE_FORMAT, options, null);
         images.show();
-
+        // parquet file
+        // output/bankloan_logistic.model/data/part-00000-beef3ccc-176c-4476-993e-141707928d86-c000.snappy.parquet
+        Dataset<Row> models = SparkUtil.loadData(spark, FilePathUtil.getWorkingDirectory() + "output/bankloan_logistic.model/data/part-00000-beef3ccc-176c-4476-993e-141707928d86-c000.snappy.parquet", "parquet");
+        models.show();
     }
 }

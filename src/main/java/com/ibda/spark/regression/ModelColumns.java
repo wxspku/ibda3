@@ -10,6 +10,7 @@ import org.apache.spark.ml.feature.VectorAssembler;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 
+import java.io.Serializable;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -17,7 +18,7 @@ import java.util.stream.Collectors;
  * 回归模型数据列设置
  * StringIndex转换，转换后形成新的Category变量，可能作为features中的一列，也可能成为label列
  */
-public class ModelColumns {
+public class ModelColumns implements Serializable {
 
     private static final String REGRESSION_FEATURES_VECTOR = "regression_features_vector";
     private static final String REGRESSION_FEATURES_DEFAULT = "features";
@@ -166,7 +167,8 @@ public class ModelColumns {
                 });
                 newCategoryFeatures.toArray(categoryFeatures);
             }
-        }//OneHotEncoder
+        }
+        //OneHotEncoder
         String[] categoryFeatureVectors = null;
         if (categoryFeatures != null) {
             categoryFeatureVectors = new String[categoryFeatures.length];
@@ -176,7 +178,8 @@ public class ModelColumns {
             OneHotEncoder encoder = new OneHotEncoder()
                     .setInputCols(categoryFeatures)
                     .setOutputCols(categoryFeatureVectors)
-                    .setHandleInvalid("error");
+                    .setDropLast(true)
+                    .setHandleInvalid("keep");
             stageList.add(encoder);
         }
 
@@ -192,8 +195,9 @@ public class ModelColumns {
                 System.arraycopy(noneCategoryFeatures, 0, features, categoryFeatureVectors.length, noneCategoryFeatures.length);
             }
             VectorAssembler assembler = new VectorAssembler()
-                    .setInputCols(features)//new String[]{"score"}
-                    .setOutputCol(featuresCol);//"score_vector"
+                    .setInputCols(features)
+                    .setOutputCol(featuresCol)
+                    .setHandleInvalid("skip");
             stageList.add(assembler);
         }
         PipelineStage[] stages = new PipelineStage[stageList.size()];

@@ -1,6 +1,8 @@
 package com.ibda.util;
 
-public class AnalysisConst {
+import java.io.Serializable;
+
+public class AnalysisConst implements Serializable {
     /**
      * 显著性水平，低
      */

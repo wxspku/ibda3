@@ -5,6 +5,7 @@ import org.apache.spark.ml.Pipeline;
 import org.apache.spark.ml.PipelineModel;
 import org.apache.spark.ml.PipelineStage;
 import org.apache.spark.ml.feature.OneHotEncoder;
+import org.apache.spark.ml.feature.PCA;
 import org.apache.spark.ml.feature.StringIndexer;
 import org.apache.spark.ml.feature.VectorAssembler;
 import org.apache.spark.sql.Dataset;
@@ -24,6 +25,7 @@ public class ModelColumns implements Serializable {
     private static final String REGRESSION_FEATURES_DEFAULT = "features";
     private static final String VECTOR_SUFFIX = "_vector";
     private static final String INDEX_SUFFIX = "_index";
+    public static final String PCA_SUFFIX = "_pca";
 
     public static ModelColumns MODEL_COLUMNS_DEFAULT =  new ModelColumns();
 
@@ -192,7 +194,8 @@ public class ModelColumns implements Serializable {
                 System.arraycopy(categoryFeatureVectors, 0, features, 0, categoryFeatureVectors.length);
             }
             if (noneCategoryFeatures != null) {
-                System.arraycopy(noneCategoryFeatures, 0, features, categoryFeatureVectors.length, noneCategoryFeatures.length);
+                System.arraycopy(noneCategoryFeatures, 0, features,
+                        categoryFeatureVectors==null?0:categoryFeatureVectors.length, noneCategoryFeatures.length);
             }
             VectorAssembler assembler = new VectorAssembler()
                     .setInputCols(features)
@@ -200,6 +203,14 @@ public class ModelColumns implements Serializable {
                     .setHandleInvalid("skip");
             stageList.add(assembler);
         }
+        //PCA TODO 如何设置合理的K
+        /*String outputCol = featuresCol + PCA_SUFFIX;
+        PCA pca = new PCA()
+                .setInputCol(featuresCol)
+                .setOutputCol(outputCol)
+                .setK(40);
+        featuresCol = outputCol;
+        stageList.add(pca);*/
         PipelineStage[] stages = new PipelineStage[stageList.size()];
         stageList.toArray(stages);
         Pipeline pipeline = new Pipeline().setStages(stages);

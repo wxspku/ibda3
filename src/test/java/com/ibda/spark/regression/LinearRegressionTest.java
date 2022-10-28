@@ -5,6 +5,7 @@ import com.ibda.util.FilePathUtil;
 import org.apache.spark.ml.PipelineModel;
 import org.apache.spark.ml.classification.LogisticRegressionModel;
 import org.apache.spark.ml.linalg.DenseVector;
+import org.apache.spark.ml.linalg.Vector;
 import org.apache.spark.ml.linalg.Vectors;
 import org.apache.spark.ml.regression.LinearRegression;
 import org.apache.spark.ml.regression.LinearRegressionModel;
@@ -28,8 +29,8 @@ public class LinearRegressionTest {
     //age,ed,employ,address,income,debtinc,creddebt,othdebt,default
     ModelColumns modelColumns = new ModelColumns(
             new String[]{"price", "engine_s", "horsepow", "wheelbas", "width", "length", "curb_wgt","fuel_cap","mpg"},
-            new String[]{"type","manufact"},
-            new String[]{"manufact"},
+            new String[]{"manufact"},//new String[]{"type","manufact"},
+            new String[]{"manufact"},//new String[]{"manufact"},
             "lnsales");
 
     @Before
@@ -77,21 +78,22 @@ public class LinearRegressionTest {
         Map<String, Object> param = new HashMap<String, Object>();
         param.put("maxIter", 100);
         param.put("tol", 1E-8);
-        param.put("threshold", 0.5);
+        param.put("regParam", 0.2);
+        param.put("elasticNetParam", 0.7);
         /*ParamMap paramMap = new ParamMap()
                 .put(lr.maxIter().w(20))  // Specify 1 Param.
                 .put(lr.maxIter(), 30)  // This overwrites the original maxIter.
-                .put(lr.regParam().w(0.1), lr.threshold().w(0.55));  // Specify multiple Params.*/
+                .put(lr.regParram().w(0.1), lr.threshold().w(0.55));  // Specify multiple Params.*/
         System.out.println("测试多元线性回归分析,car_sales数据集------------------");
         Dataset<Row> trainAndTest = carSales.filter("lnsales is not null");
         //划分训练集、测试集
-        Dataset<Row>[] datasets = trainAndTest.randomSplit(new double[]{0.8d, 0.2d});
+        Dataset<Row>[] datasets = trainAndTest.randomSplit(new double[]{0.6d, 0.4d});
         Dataset<Row> training = datasets[0];
         Dataset<Row> testing = datasets[1];
         System.out.println(String.format("记录总数：%1$s,训练集大小：%2$s,测试集大小：%3$s",trainAndTest.count(),training.count(),testing.count()));
 
         //训练
-        System.out.println("训练二元逻辑回归模型------------------");
+        System.out.println("训练多元线性回归模型------------------");
         SparkHyperModel<LinearRegressionModel> linearModel = linear.fit(training, modelColumns,pipelineModel, param);
         System.out.println("训练模型结果及性能\n:" + linearModel);
         //评估
@@ -100,7 +102,7 @@ public class LinearRegressionTest {
         Dataset<Row> tested = SparkHyperModel.getEvaluatePredictions(metrics);
         tested.show();
         //预测
-        Dataset<Row> predicting = carSales.filter("lnsales is null");
+        Dataset<Row> predicting = testing;//carSales.filter("lnsales is null");
         System.out.println("预测数据集:" + predicting.count());
         predicting.show();
         Dataset<Row> predicted = linearModel.predict(predicting);
@@ -111,7 +113,7 @@ public class LinearRegressionTest {
         Row[] rows = (Row[])predicted.select("regression_features_vector").head(20);
         Arrays.stream(rows).forEach(row->{
             GenericRowWithSchema gRow = (GenericRowWithSchema)row;
-            DenseVector data = (DenseVector)gRow.values()[0];
+            Vector data = (Vector)gRow.values()[0];
             double label = linear.predict(linearModel.getModel(),data);
             System.out.println(data.toString() + ":" + label);
         });

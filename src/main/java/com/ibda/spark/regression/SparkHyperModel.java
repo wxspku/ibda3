@@ -1,5 +1,6 @@
 package com.ibda.spark.regression;
 
+import cn.hutool.core.lang.Filter;
 import cn.hutool.core.util.ReflectUtil;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.hadoop.shaded.org.apache.commons.beanutils.BeanUtils;
@@ -35,6 +36,10 @@ public  class SparkHyperModel<M extends Model> implements Serializable {
 
     protected static final String[] EXCLUDE_METHODS =
             new String[]{"getClass", "toString", "hashCode", "wait", "notify", "notifyAll", "asBinary"};
+
+    protected static final Class[] EXCLUDE_RETURN_TYPES = new Class[]{Dataset.class,
+            BinaryClassificationMetrics.class,
+            SparkSession.class};
 
     /**
      *
@@ -318,31 +323,35 @@ public  class SparkHyperModel<M extends Model> implements Serializable {
         } catch (IllegalAccessException|InvocationTargetException|NoSuchMethodException e) {
             e.printStackTrace();
         }
-        //通过方法获取性能指标 TODO 私有方法
-        Method[] publicMethods = ReflectUtil.getPublicMethods(summary.getClass());
-        Arrays.stream(publicMethods).forEach(method -> {
-            if (method.getParameterCount() == 0) {
-                if (!ArrayUtils.contains(EXCLUDE_METHODS, method.getName())) {
-                    try {
-                        Object performance = method.invoke(summary);
-                        if (!(performance instanceof Dataset) &&
-                                !(performance instanceof BinaryClassificationMetrics) &&
-                                !(performance instanceof SparkSession)) {
-                            String name = method.getName();
-                            if (performance instanceof MulticlassMetrics) {
-                                name = "multiclassMetrics";
-                                Matrix confusionMatrix = ((MulticlassMetrics) performance).confusionMatrix();
-                                //混淆矩阵，行为实际值，列为预测值，转换为数组时是先列后行进行转换
-                                metrics.put("confusionMatrix", confusionMatrix);
-                            }
-                            metrics.put(name, performance);
-                        }
-                    } catch (IllegalAccessException|InvocationTargetException e) {
-                        e.printStackTrace();
-                    }
-                }
+        //通过方法获取性能指标
+        // 线性回归模型根据参数部同，可能无法获取tValues、pValues数值
+        // https://stackoverflow.com/questions/46696378/spark-linearregressionsummary-normal-summary
+        List<Method> publicMethods = ReflectUtil.getPublicMethods(summary.getClass(), new Filter<Method>() {
+            @Override
+            public boolean accept(Method method) {
+                return method. getParameterCount() == 0 &&
+                !ArrayUtils.contains(EXCLUDE_METHODS, method.getName()) &&
+                !ArrayUtils.contains(EXCLUDE_RETURN_TYPES,method.getReturnType()) ;
             }
         });
+        publicMethods.forEach(method -> {
+            try {
+                method.setAccessible(true);
+                Object performance = method.invoke(summary);
+                String name = method.getName();
+                if (performance instanceof MulticlassMetrics) {
+                    name = "multiclassMetrics";
+                    Matrix confusionMatrix = ((MulticlassMetrics) performance).confusionMatrix();
+                    //混淆矩阵，行为实际值，列为预测值，转换为数组时是先列后行进行转换
+                    metrics.put("confusionMatrix", confusionMatrix);
+                }
+                metrics.put(name, performance);
+
+            } catch (IllegalAccessException|InvocationTargetException e) {
+                e.printStackTrace();
+            }
+        });
+
         return metrics;
     }
 }

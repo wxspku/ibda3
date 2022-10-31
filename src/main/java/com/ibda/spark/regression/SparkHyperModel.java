@@ -7,7 +7,10 @@ import org.apache.hadoop.shaded.org.apache.commons.beanutils.BeanUtils;
 import org.apache.spark.ml.Model;
 import org.apache.spark.ml.PipelineModel;
 import org.apache.spark.ml.PredictionModel;
+import org.apache.spark.ml.classification.ClassificationModel;
+import org.apache.spark.ml.classification.DecisionTreeClassificationModel;
 import org.apache.spark.ml.classification.LogisticRegressionModel;
+import org.apache.spark.ml.evaluation.MulticlassClassificationEvaluator;
 import org.apache.spark.ml.linalg.Vector;
 import org.apache.spark.ml.regression.LinearRegressionModel;
 import org.apache.spark.ml.util.HasTrainingSummary;
@@ -157,6 +160,14 @@ public  class SparkHyperModel<M extends Model> implements Serializable {
         return new HashMap<>(trainingMetrics);
     }
 
+    /**
+     * 外部计算训练指标
+     * @param trainingMetrics
+     */
+    public void setTrainingMetrics(Map<String, Object> trainingMetrics) {
+        this.trainingMetrics.putAll(trainingMetrics);
+        this.predictions = (Dataset<Row>) trainingMetrics.get(PREDICTIONS_KEY);
+    }
 
     @Override
     public String toString() {
@@ -215,9 +226,26 @@ public  class SparkHyperModel<M extends Model> implements Serializable {
      */
     public  Map<String, Object> evaluate(Dataset<Row> evaluatingData, ModelColumns modelCols, PipelineModel preProcessModel){
         Dataset<Row> testing = modelCols.transform(evaluatingData, preProcessModel);
-        Object summary = ReflectUtil.invoke(model,"evaluate",testing);
-        Map<String, Object> metrics = this.buildMetrics(summary);
-        metrics.put(PREDICTIONS_KEY, ReflectUtil.invoke(summary,"predictions"));
+        Method evaluateMethod = ReflectUtil.getMethodByName(model.getClass(), "evaluate");
+        Map<String, Object> metrics = new LinkedHashMap<>();
+        if (evaluateMethod!=null){
+            Object summary = ReflectUtil.invoke(model,"evaluate",testing);
+            metrics.putAll(this.buildMetrics(summary));
+            metrics.put(PREDICTIONS_KEY, ReflectUtil.invoke(summary,"predictions"));
+        }
+        else{
+            Dataset<Row> evaluated = model.transform(testing);
+            if (model instanceof ClassificationModel){
+                MulticlassClassificationEvaluator evaluator = new MulticlassClassificationEvaluator();
+                evaluator.setLabelCol(modelCols.labelCol);
+                evaluator.setPredictionCol(modelCols.predictCol);
+                evaluator.setProbabilityCol(modelCols.probabilityCol);
+                MulticlassMetrics evaluatorMetrics = evaluator.getMetrics(evaluated);
+                metrics.putAll(this.buildMetrics(evaluatorMetrics));
+                metrics.put(PREDICTIONS_KEY, evaluated);
+            }
+        }
+
         return metrics;
     }
 
@@ -300,12 +328,14 @@ public  class SparkHyperModel<M extends Model> implements Serializable {
             HasTrainingSummary summaryModel = (HasTrainingSummary) model;
             if (summaryModel.hasSummary()){
                 Object summary = summaryModel.summary();
-                this.predictions = ReflectUtil.invoke(summary,"predictions");
+                if (ReflectUtil.getMethodByName(summary.getClass(),"predictions")!=null){
+                    this.predictions = ReflectUtil.invoke(summary,"predictions");
+                }
                 trainingMetrics.putAll(buildMetrics(summary));
             }
         }
         else { //根据Evaluator计算
-            throw new RuntimeException("Not implemented for none HasTrainingSummary model:" + model.getClass());
+            //throw new RuntimeException("Not implemented for none HasTrainingSummary model:" + model.getClass());
         }
     }
 

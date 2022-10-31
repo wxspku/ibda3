@@ -74,6 +74,11 @@ public class SparkML<E extends Estimator,M extends Model> extends BasicStatistic
         ParamMap paramMap = buildParams(estimator.uid(),params);
         M model = (M)estimator.fit(training,paramMap);
         SparkHyperModel<M> hyperModel = new SparkHyperModel<M>(model,preProcessModel,modelCols);
+        if (hyperModel.getTrainingMetrics().isEmpty()){
+            //通过训练集评估训练结果指标
+            Map<String, Object> trainingMetrics = hyperModel.evaluate(training, modelCols, preProcessModel);
+            hyperModel.setTrainingMetrics(trainingMetrics);
+        }
         return hyperModel;
 
     }

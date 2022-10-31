@@ -416,6 +416,13 @@
             </Attribute>
           </value>
         </entry>
+        <entry key="\src\test\resources\data\credit_decision_tree.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
         <entry key="\src\test\resources\data\currency_percent.csv">
           <value>
             <Attribute>

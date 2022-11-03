@@ -409,7 +409,21 @@
             </Attribute>
           </value>
         </entry>
+        <entry key="\src\test\resources\data\car_decision_tree.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
         <entry key="\src\test\resources\data\car_sales_linear.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\src\test\resources\data\cereal_multinorminal.csv">
           <value>
             <Attribute>
               <option name="separator" value="," />

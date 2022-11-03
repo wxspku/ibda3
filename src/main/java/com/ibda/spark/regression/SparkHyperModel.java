@@ -10,14 +10,19 @@ import org.apache.spark.ml.PredictionModel;
 import org.apache.spark.ml.classification.ClassificationModel;
 import org.apache.spark.ml.classification.DecisionTreeClassificationModel;
 import org.apache.spark.ml.classification.LogisticRegressionModel;
+import org.apache.spark.ml.classification.OneVsRestModel;
 import org.apache.spark.ml.evaluation.MulticlassClassificationEvaluator;
+import org.apache.spark.ml.evaluation.RegressionEvaluator;
 import org.apache.spark.ml.linalg.Vector;
+import org.apache.spark.ml.regression.DecisionTreeRegressionModel;
 import org.apache.spark.ml.regression.LinearRegressionModel;
+import org.apache.spark.ml.regression.RegressionModel;
 import org.apache.spark.ml.util.HasTrainingSummary;
 import org.apache.spark.ml.util.MLReadable;
 import org.apache.spark.ml.util.MLWritable;
 import org.apache.spark.mllib.evaluation.BinaryClassificationMetrics;
 import org.apache.spark.mllib.evaluation.MulticlassMetrics;
+import org.apache.spark.mllib.evaluation.RegressionMetrics;
 import org.apache.spark.mllib.linalg.Matrix;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
@@ -235,14 +240,22 @@ public  class SparkHyperModel<M extends Model> implements Serializable {
         }
         else{
             Dataset<Row> evaluated = model.transform(testing);
-            if (model instanceof ClassificationModel){
+            metrics.put(PREDICTIONS_KEY, evaluated);
+            //OneVsRestModel not a ClassificationModel
+            if (model instanceof ClassificationModel || model instanceof OneVsRestModel){
                 MulticlassClassificationEvaluator evaluator = new MulticlassClassificationEvaluator();
                 evaluator.setLabelCol(modelCols.labelCol);
                 evaluator.setPredictionCol(modelCols.predictCol);
                 evaluator.setProbabilityCol(modelCols.probabilityCol);
-                MulticlassMetrics evaluatorMetrics = evaluator.getMetrics(evaluated);
-                metrics.putAll(this.buildMetrics(evaluatorMetrics));
-                metrics.put(PREDICTIONS_KEY, evaluated);
+                MulticlassMetrics classificationMetrics = evaluator.getMetrics(evaluated);
+                metrics.putAll(this.buildMetrics(classificationMetrics));
+            }
+            else if (model instanceof RegressionModel){
+                RegressionEvaluator  evaluator = new RegressionEvaluator();
+                evaluator.setLabelCol(modelCols.labelCol);
+                evaluator.setPredictionCol(modelCols.predictCol);
+                RegressionMetrics regressionMetrics = evaluator.getMetrics(evaluated);
+                metrics.putAll(this.buildMetrics(regressionMetrics));
             }
         }
 

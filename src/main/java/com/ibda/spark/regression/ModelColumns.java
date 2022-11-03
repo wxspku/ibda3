@@ -54,10 +54,12 @@ public class ModelColumns implements Serializable {
     }
 
     /**
-     *  @param noneCategoryFeatures
-     * @param categoryFeatures
-     * @param stringCategoryFeatures
-     * @param labelCol
+     *  @param noneCategoryFeatures    非编码字段
+     * @param categoryFeatures         需要进行独热编码处理的分类字段，如果无需处理，则直接进入noneCategoryFeatures
+     * @param stringCategoryFeatures   需要进行索引化处理的字符串类型的分类变量，索引后如需继续做独热编码，该字段需要在
+     *                                 categoryFeatures中，否则需在noneCategoryFeatures中
+     *
+     * @param labelCol                 标签列，预测分类或预测结果列
      */
     public ModelColumns(String[] noneCategoryFeatures, String[] categoryFeatures, String[] stringCategoryFeatures, String labelCol){
         this.noneCategoryFeatures = noneCategoryFeatures;
@@ -160,14 +162,26 @@ public class ModelColumns implements Serializable {
             //将categoryFeatures中的字符串分类数据名称修改为带后缀的名称
             List<String> newCategoryFeatures = new ArrayList<>();
             if (categoryFeatures != null) {
-                Arrays.stream(categoryFeatures).forEach(categoryFeature -> {
-                    if (ArrayUtils.contains(stringCategoryFeatures, categoryFeature)) {
-                        newCategoryFeatures.add(categoryFeature + INDEX_SUFFIX);
+                Arrays.stream(categoryFeatures).forEach(feature -> {
+                    if (ArrayUtils.contains(stringCategoryFeatures, feature)) {
+                        newCategoryFeatures.add(feature + INDEX_SUFFIX);
                     } else {
-                        newCategoryFeatures.add(categoryFeature);
+                        newCategoryFeatures.add(feature);
                     }
                 });
                 newCategoryFeatures.toArray(categoryFeatures);
+            }
+
+            List<String> newNoneCategoryFeatures = new ArrayList<>();
+            if (noneCategoryFeatures != null) {
+                Arrays.stream(noneCategoryFeatures).forEach(feature -> {
+                    if (ArrayUtils.contains(stringCategoryFeatures, feature)) {
+                        newNoneCategoryFeatures.add(feature + INDEX_SUFFIX);
+                    } else {
+                        newNoneCategoryFeatures.add(feature);
+                    }
+                });
+                newNoneCategoryFeatures.toArray(noneCategoryFeatures);
             }
         }
         //OneHotEncoder

@@ -4,9 +4,9 @@ import org.apache.spark.ml.classification.GBTClassificationModel;
 import org.apache.spark.ml.classification.GBTClassifier;
 
 public class GBTClassificationTest extends SparkMLTest<GBTClassifier, GBTClassificationModel>{
+
     @Override
-    public void prepareData() {
-        loadBinomialData();
+    public void initTrainingParams(){
         trainingParams.put("numTrees",100d); //default 50
         trainingParams.put("impurity", "variance");
         trainingParams.put("minInstancesPerNode", 10); //default 1

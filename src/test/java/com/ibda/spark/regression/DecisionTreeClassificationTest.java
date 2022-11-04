@@ -26,6 +26,24 @@ import java.util.Map;
 
 public class DecisionTreeClassificationTest extends SparkMLTest<DecisionTreeClassifier,DecisionTreeClassificationModel>{
 
+    @Override
+    protected void loadBinomialData() {
+        modelColumns = new ModelColumns(
+                new String[]{"Age"},
+                new String[]{"Income", "Credit_cards", "Education", "Car_loans"},
+                "Credit_rating");
+        loadDataSet(FilePathUtil.getAbsolutePath("data/credit_decision_tree.csv", false),"csv");
+    }
+    @Override
+    protected void loadMultinomialData() {
+        //agecat,gender,marital,active,bfast
+        modelColumns = new ModelColumns(
+                null,
+                new String[]{"agecat","gender","marital","active"},
+                "preferbfast");
+        loadDataSet(FilePathUtil.getAbsolutePath("data/cereal_multinomial.csv", false),"csv");
+    }
+
     protected void initTrainingParams(){
         trainingParams.put("impurity", "gini");
         trainingParams.put("minInfoGain", 0.0d);

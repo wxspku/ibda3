@@ -14,9 +14,5 @@ public class LinearRegressionTest extends SparkRegressionTest<LinearRegression, 
         trainingParams.put("elasticNetParam", 0.7);
     }
 
-    @Override
-    public void test02MachineLearning() throws IOException {
-        //GBTClassificationModel、LinearSVCModel只支持二分类
-        super.test02MachineLearning();
-    }
+
 }

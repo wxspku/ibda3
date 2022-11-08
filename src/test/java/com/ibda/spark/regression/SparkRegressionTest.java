@@ -8,11 +8,7 @@ import org.apache.spark.ml.Model;
 import java.io.IOException;
 
 public abstract class SparkRegressionTest<E extends Estimator, M extends Model> extends SparkMLTest<E, M> {
-    @Override
-    public void prepareData() {
-        loadTest01Data();
-        initTrainingParams();
-    }
+
 
     @Override
     public void test02MachineLearning() throws IOException {

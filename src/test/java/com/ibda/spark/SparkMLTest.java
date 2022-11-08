@@ -12,6 +12,7 @@ import org.apache.spark.ml.linalg.Vector;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.FixMethodOrder;
 import org.junit.Test;
@@ -33,7 +34,7 @@ public abstract class SparkMLTest<E extends Estimator, M extends Model> {
      * 模型类
      */
     protected Class<M> modelClass = (Class<M>) ((ParameterizedType) this.getClass().getGenericSuperclass()).getActualTypeArguments()[1];
-    protected SparkML<E, M> sparkLearning = new SparkML<>(estimatorClass);
+    protected SparkML<E, M> sparkLearning = null;
     protected PipelineModel pipelineModel = null;
     protected ModelColumns modelColumns = null;
     //数组：训练集、测试集、预测集
@@ -58,8 +59,14 @@ public abstract class SparkMLTest<E extends Estimator, M extends Model> {
      */
     @Before
     public void prepareData() {
+        sparkLearning = new SparkML<>(estimatorClass);
         loadTest01Data();
         initTrainingParams();
+    }
+
+    @After
+    public void destroy() throws Throwable {
+        sparkLearning.finalize();
     }
 
     @Test

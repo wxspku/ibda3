@@ -137,7 +137,12 @@ public class SparkAnalysis extends AnalysisConst {
     @Override
     protected void finalize() throws Throwable {
         super.finalize();
-        spark.stop();
+        try{
+            spark.close();
+        }
+        catch (Exception ex){
+            ex.printStackTrace();
+        }
     }
 
 

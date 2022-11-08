@@ -24,12 +24,12 @@ public class SparkUtilTest {
         //add是创建新的StructType，所以不能用StructType.add
         //StructField初始化MetaData需使用Metadata.empty(),否则报错
         StructType schema = new StructType(new StructField[]{
-                new StructField("id",IntegerType,false, Metadata.empty()),
-                new StructField("score",DoubleType,false,Metadata.empty())
+                new StructField("id", IntegerType, false, Metadata.empty()),
+                new StructField("score", DoubleType, false, Metadata.empty())
         });
         //"id INT NOT NULL,score DOUBLE NOT NULL"
         System.out.println(schema.toDDL());
-        Dataset<Row> dataset = SparkUtil.loadExcel(spark, path, schema.toDDL(),0, "A2");
+        Dataset<Row> dataset = SparkUtil.loadExcel(spark, path, schema.toDDL(), 0, "A2");
         dataset.show();
         //输出数据统计信息
         Dataset<Row> score1 = dataset.select("score").sort("score");
@@ -40,7 +40,7 @@ public class SparkUtilTest {
         Dataset<Row> score = spark.sql("select score from scores where score>=70");
         score.show();
 
-        Map<String,String> options = new HashMap<>();
+        Map<String, String> options = new HashMap<>();
         //读取csv文件
         Dataset<Row> csv = SparkUtil.loadData(spark, FilePathUtil.getClassRoot() + "/data/anova_dvdplayers.csv", null, null, null);
         csv.show();

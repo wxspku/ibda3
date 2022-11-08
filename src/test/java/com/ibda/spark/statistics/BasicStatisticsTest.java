@@ -23,25 +23,27 @@ import static com.ibda.spark.SparkAnalysis.DESCRIPTIVE_TARGET_ALL;
 public class BasicStatisticsTest {
 
     static BasicStatistics stat = null;
-    static{
+
+    static {
         stat = new BasicStatistics("test for BasicStatistics");
     }
 
     /**
      * 使用KolmogorovSmirnovTest检测是否符合正态分布
+     *
      * @return
      * @throws AnalysisException
      */
-    private boolean isNormalDistribution()  {
+    private boolean isNormalDistribution() {
         String path = FilePathUtil.getClassRoot() + "/data/stattest.xlsx";
-        Dataset<Row> dataset = stat.loadExcel( path, 0, "A2",
+        Dataset<Row> dataset = stat.loadExcel(path, 0, "A2",
                 "id INT NOT NULL,score DOUBLE NOT NULL");
         HypothesisTestResults results = stat.normalDistTest(dataset, "score");
         System.out.println(results);
         return results.nullHypothesisAccepted(0);
     }
 
-    private void sparkSummarizeDemo(){
+    private void sparkSummarizeDemo() {
         List<Row> data = Arrays.asList(
                 RowFactory.create(Vectors.dense(2.0, 4.5, 5.0), 1.0),
                 RowFactory.create(Vectors.dense(4.0, 6.0, 8.0), 2.0)
@@ -54,11 +56,11 @@ public class BasicStatisticsTest {
 
         Dataset<Row> df = stat.getSpark().createDataFrame(data, schema);
 
-        Row result1 = df.select(Summarizer.metrics("mean", "variance","normL1","normL2","sum")
+        Row result1 = df.select(Summarizer.metrics("mean", "variance", "normL1", "normL2", "sum")
                         .summary(new Column("features"), new Column("weight")).as("summary"))
-                .select("summary.mean", "summary.variance","summary.normL1", "summary.normL2","summary.sum").first();
+                .select("summary.mean", "summary.variance", "summary.normL1", "summary.normL2", "summary.sum").first();
         System.out.println("with weight: mean = " + result1.<Vector>getAs(0).toString() +
-                ", variance = " + result1.<Vector>getAs(1).toString()+
+                ", variance = " + result1.<Vector>getAs(1).toString() +
                 ", normL1 = " + result1.<Vector>getAs(2).toString() +
                 ", normL2 = " + result1.<Vector>getAs(3).toString() +
                 ", sum = " + result1.<Vector>getAs(4).toString());
@@ -72,7 +74,7 @@ public class BasicStatisticsTest {
                 ", variance = " + result2.<Vector>getAs(1).toString());
     }
 
-    private void descriptiveStatisticsDemo(){
+    private void descriptiveStatisticsDemo() {
         /*"chi_score DOUBLE NOT NULL," +
                 "math_score DOUBLE NOT NULL," +
                 "eng_score DOUBLE NOT NULL");*/
@@ -106,9 +108,9 @@ public class BasicStatisticsTest {
         Dataset<Row> vectorDataset = SparkAnalysis.assembleVector(dataset, new String[]{"score"}, "score_vector");
         vectorDataset.show();
         //向量的normL1 = sum , normL2 = sqrt(Σx^2*w)
-        Row result1 = vectorDataset.select(Summarizer.metrics("mean", "variance","normL1","normL2","sum")
+        Row result1 = vectorDataset.select(Summarizer.metrics("mean", "variance", "normL1", "normL2", "sum")
                         .summary(new Column("score_vector")).as("summary"))
-                .select("summary.mean", "summary.variance","summary.normL1", "summary.normL2","summary.sum").first();
+                .select("summary.mean", "summary.variance", "summary.normL1", "summary.normL2", "summary.sum").first();
         System.out.println("with weight: mean = " + result1.<Vector>getAs(0).toString() +
                 ", variance = " + result1.<Vector>getAs(1).toString() +
                 ", normL1 = " + result1.<Vector>getAs(2).toString() +
@@ -123,7 +125,7 @@ public class BasicStatisticsTest {
                 ", variance = " + result2.<Vector>getAs(1).toString());
     }
 
-    private void calcCorrelation(){
+    private void calcCorrelation() {
         Dataset<Row> dataset = getExcelDataset();
         DenseMatrix pearson = stat.getCorrelationMatrix(dataset, new String[]{"chi_score", "math_score", "eng_score"});
         System.out.println("Pearson correlation matrix:\n" + pearson.toString());
@@ -153,7 +155,7 @@ public class BasicStatisticsTest {
      * 3：计算卡方统计量及伴随概率p
      * 4：比较：卡方统计量＞临界值（或者：伴随概率p＜显著性水平α），则分类变量不独立
      */
-    private void ChiSquareTestDemo(){
+    private void ChiSquareTestDemo() {
         List<Row> data = Arrays.asList(
                 RowFactory.create(0.0, Vectors.dense(0.5, 10.0)),
                 RowFactory.create(0.0, Vectors.dense(1.5, 20.0)),
@@ -174,7 +176,7 @@ public class BasicStatisticsTest {
 
     }
 
-    private void FValueAndANOVATestDemo(){
+    private void FValueAndANOVATestDemo() {
         String path = FilePathUtil.getClassRoot() + "data/anova_dvdplayers.csv";
         Dataset<Row> dataset = stat.loadData(path, null);
         dataset.show();
@@ -194,7 +196,7 @@ public class BasicStatisticsTest {
     }
 
     @Test
-    public  void testBasicStat() throws AnalysisException {
+    public void testBasicStat() throws AnalysisException {
         sparkSummarizeDemo();
         descriptiveStatisticsDemo();
         ChiSquareTestDemo();

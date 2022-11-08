@@ -8,17 +8,14 @@ import org.apache.spark.ml.Model;
 import org.apache.spark.ml.PipelineModel;
 import org.apache.spark.ml.PredictionModel;
 import org.apache.spark.ml.classification.ClassificationModel;
-import org.apache.spark.ml.classification.DecisionTreeClassificationModel;
 import org.apache.spark.ml.classification.LogisticRegressionModel;
 import org.apache.spark.ml.classification.OneVsRestModel;
 import org.apache.spark.ml.evaluation.MulticlassClassificationEvaluator;
 import org.apache.spark.ml.evaluation.RegressionEvaluator;
 import org.apache.spark.ml.linalg.Vector;
-import org.apache.spark.ml.regression.DecisionTreeRegressionModel;
 import org.apache.spark.ml.regression.LinearRegressionModel;
 import org.apache.spark.ml.regression.RegressionModel;
 import org.apache.spark.ml.util.HasTrainingSummary;
-import org.apache.spark.ml.util.MLReadable;
 import org.apache.spark.ml.util.MLWritable;
 import org.apache.spark.mllib.evaluation.BinaryClassificationMetrics;
 import org.apache.spark.mllib.evaluation.MulticlassMetrics;
@@ -36,9 +33,10 @@ import java.util.*;
 
 /**
  * 超模型，除机器学习的训练预测模型以外，还存储了其他参数
+ *
  * @param <M>
  */
-public  class SparkHyperModel<M extends Model> implements Serializable {
+public class SparkHyperModel<M extends Model> implements Serializable {
 
     public static final String PREDICTIONS_KEY = "predictions";
 
@@ -50,36 +48,34 @@ public  class SparkHyperModel<M extends Model> implements Serializable {
             SparkSession.class};
 
     /**
-     *
      * @param path
      * @param clz
      * @param <M>
      * @return
      */
     public static <M extends Model> SparkHyperModel<M> loadFromModelFile(String path, Class<M> clz) {
-        try{
-            Method method = ReflectUtil.getMethodByName(clz,"load");
-            M model = ReflectUtil.invokeStatic(method,path);
-            SparkHyperModel<M> hyperModel = new SparkHyperModel<>(model);
-            return hyperModel;
+        Method method = ReflectUtil.getMethodByName(clz, "load");
+        if (method != null){
+                M model = ReflectUtil.invokeStatic(method, path);
+                SparkHyperModel<M> hyperModel = new SparkHyperModel<>(model);
+                return hyperModel;
         }
-        catch(Exception ex){
-            throw new RuntimeException("No load method defined:" + clz,ex);
-        }
+        return null;
+
 
     }
 
     /**
      * 从评估性能数据获取带预测结果的测试记录集
+     *
      * @param evaluateMetrics
      * @return
      */
-    public static Dataset<Row> getEvaluatePredictions(Map<String,Object> evaluateMetrics){
-        return (Dataset<Row>)evaluateMetrics.get(PREDICTIONS_KEY);
+    public static Dataset<Row> getEvaluatePredictions(Map<String, Object> evaluateMetrics) {
+        return (Dataset<Row>) evaluateMetrics.get(PREDICTIONS_KEY);
     }
 
     /**
-     *
      * @param model
      */
     public SparkHyperModel(M model) {
@@ -87,7 +83,6 @@ public  class SparkHyperModel<M extends Model> implements Serializable {
     }
 
     /**
-     *
      * @param model
      * @param preProcessModel
      */
@@ -96,7 +91,6 @@ public  class SparkHyperModel<M extends Model> implements Serializable {
     }
 
     /**
-     *
      * @param model
      * @param preProcessModel
      * @param modelColumns
@@ -108,7 +102,6 @@ public  class SparkHyperModel<M extends Model> implements Serializable {
         initCoefficients();
         initMetrics();
     }
-
 
 
     /**
@@ -167,6 +160,7 @@ public  class SparkHyperModel<M extends Model> implements Serializable {
 
     /**
      * 外部计算训练指标
+     *
      * @param trainingMetrics
      */
     public void setTrainingMetrics(Map<String, Object> trainingMetrics) {
@@ -220,7 +214,6 @@ public  class SparkHyperModel<M extends Model> implements Serializable {
     }
 
 
-
     /**
      * 评估模型，返回评估的性能指标，其中predictions条目表示预测结果
      *
@@ -229,29 +222,27 @@ public  class SparkHyperModel<M extends Model> implements Serializable {
      * @param preProcessModel
      * @return
      */
-    public  Map<String, Object> evaluate(Dataset<Row> evaluatingData, ModelColumns modelCols, PipelineModel preProcessModel){
+    public Map<String, Object> evaluate(Dataset<Row> evaluatingData, ModelColumns modelCols, PipelineModel preProcessModel) {
         Dataset<Row> testing = modelCols.transform(evaluatingData, preProcessModel);
         Method evaluateMethod = ReflectUtil.getMethodByName(model.getClass(), "evaluate");
         Map<String, Object> metrics = new LinkedHashMap<>();
-        if (evaluateMethod!=null){
-            Object summary = ReflectUtil.invoke(model,"evaluate",testing);
+        if (evaluateMethod != null) {
+            Object summary = ReflectUtil.invoke(model, "evaluate", testing);
             metrics.putAll(this.buildMetrics(summary));
-            metrics.put(PREDICTIONS_KEY, ReflectUtil.invoke(summary,"predictions"));
-        }
-        else{
+            metrics.put(PREDICTIONS_KEY, ReflectUtil.invoke(summary, "predictions"));
+        } else {
             Dataset<Row> evaluated = model.transform(testing);
             metrics.put(PREDICTIONS_KEY, evaluated);
             //OneVsRestModel not a ClassificationModel
-            if (model instanceof ClassificationModel || model instanceof OneVsRestModel){
+            if (model instanceof ClassificationModel || model instanceof OneVsRestModel) {
                 MulticlassClassificationEvaluator evaluator = new MulticlassClassificationEvaluator();
                 evaluator.setLabelCol(modelCols.labelCol);
                 evaluator.setPredictionCol(modelCols.predictCol);
                 evaluator.setProbabilityCol(modelCols.probabilityCol);
                 MulticlassMetrics classificationMetrics = evaluator.getMetrics(evaluated);
                 metrics.putAll(this.buildMetrics(classificationMetrics));
-            }
-            else if (model instanceof RegressionModel){
-                RegressionEvaluator  evaluator = new RegressionEvaluator();
+            } else if (model instanceof RegressionModel) {
+                RegressionEvaluator evaluator = new RegressionEvaluator();
                 evaluator.setLabelCol(modelCols.labelCol);
                 evaluator.setPredictionCol(modelCols.predictCol);
                 RegressionMetrics regressionMetrics = evaluator.getMetrics(evaluated);
@@ -291,7 +282,7 @@ public  class SparkHyperModel<M extends Model> implements Serializable {
      * @param preProcessModel
      * @return
      */
-    public  Dataset<Row> predict(Dataset<Row> predictData, ModelColumns modelCols, PipelineModel preProcessModel) {
+    public Dataset<Row> predict(Dataset<Row> predictData, ModelColumns modelCols, PipelineModel preProcessModel) {
         Dataset<Row> predicting = modelCols.transform(predictData, preProcessModel);
         Dataset<Row> result = model.transform(predicting);
         return result;
@@ -299,12 +290,13 @@ public  class SparkHyperModel<M extends Model> implements Serializable {
 
     /**
      * 预测单个数据
-     * @param features  经过转换后的向量形式的特征值
+     *
+     * @param features 经过转换后的向量形式的特征值
      * @return 预测的结果
      */
-    public  double predict(Vector features) {
-        if (model instanceof PredictionModel){
-            PredictionModel predictionModel = ((PredictionModel)model);
+    public double predict(Vector features) {
+        if (model instanceof PredictionModel) {
+            PredictionModel predictionModel = ((PredictionModel) model);
             return predictionModel.predict(features);
         }
         throw new RuntimeException("Not a PredictionModel:" + model.getClass());
@@ -313,17 +305,17 @@ public  class SparkHyperModel<M extends Model> implements Serializable {
     protected void initCoefficients() {
         //回归系数
         if (model instanceof LinearRegressionModel ||
-            model instanceof LogisticRegressionModel &&
-            ReflectUtil.invoke(model,"numClasses").equals(2)) {//线性回归或二元逻辑回归
-            double[] array = ((Vector)ReflectUtil.invoke(model,"coefficients")).toArray();
-            double[] coefficients = ArrayUtils.addFirst(array, ReflectUtil.invoke(model,"intercept"));
+                model instanceof LogisticRegressionModel &&
+                        ReflectUtil.invoke(model, "numClasses").equals(2)) {//线性回归或二元逻辑回归
+            double[] array = ((Vector) ReflectUtil.invoke(model, "coefficients")).toArray();
+            double[] coefficients = ArrayUtils.addFirst(array, ReflectUtil.invoke(model, "intercept"));
             coefficientsList.add(coefficients);
-        } else if (model instanceof LogisticRegressionModel){//多元回归
+        } else if (model instanceof LogisticRegressionModel) {//多元回归
             //截距向量
-            org.apache.spark.ml.linalg.Vector interceptVector = ReflectUtil.invoke(model,"interceptVector");
+            org.apache.spark.ml.linalg.Vector interceptVector = ReflectUtil.invoke(model, "interceptVector");
             double[] intercepts = interceptVector.toArray();
             //系数矩阵，每行作为一套系数OneVsOther
-            org.apache.spark.ml.linalg.Matrix coefficientMatrix = ReflectUtil.invoke(model,"coefficientMatrix");
+            org.apache.spark.ml.linalg.Matrix coefficientMatrix = ReflectUtil.invoke(model, "coefficientMatrix");
             scala.collection.Iterator<Vector> rowIter = coefficientMatrix.rowIter();
             //将截距向量和系数矩阵拼接为完整的系数
             int i = 0;
@@ -337,17 +329,16 @@ public  class SparkHyperModel<M extends Model> implements Serializable {
     }
 
     protected void initMetrics() {
-        if (model instanceof HasTrainingSummary){
+        if (model instanceof HasTrainingSummary) {
             HasTrainingSummary summaryModel = (HasTrainingSummary) model;
-            if (summaryModel.hasSummary()){
+            if (summaryModel.hasSummary()) {
                 Object summary = summaryModel.summary();
-                if (ReflectUtil.getMethodByName(summary.getClass(),"predictions")!=null){
-                    this.predictions = ReflectUtil.invoke(summary,"predictions");
+                if (ReflectUtil.getMethodByName(summary.getClass(), "predictions") != null) {
+                    this.predictions = ReflectUtil.invoke(summary, "predictions");
                 }
                 trainingMetrics.putAll(buildMetrics(summary));
             }
-        }
-        else { //根据Evaluator计算
+        } else { //根据Evaluator计算
             //throw new RuntimeException("Not implemented for none HasTrainingSummary model:" + model.getClass());
         }
     }
@@ -363,7 +354,7 @@ public  class SparkHyperModel<M extends Model> implements Serializable {
         //通过属性获取性能指标
         try {
             metrics.putAll(BeanUtils.describe(summary));
-        } catch (IllegalAccessException|InvocationTargetException|NoSuchMethodException e) {
+        } catch (IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
             e.printStackTrace();
         }
         //通过方法获取性能指标
@@ -372,9 +363,9 @@ public  class SparkHyperModel<M extends Model> implements Serializable {
         List<Method> publicMethods = ReflectUtil.getPublicMethods(summary.getClass(), new Filter<Method>() {
             @Override
             public boolean accept(Method method) {
-                return method. getParameterCount() == 0 &&
-                !ArrayUtils.contains(EXCLUDE_METHODS, method.getName()) &&
-                !ArrayUtils.contains(EXCLUDE_RETURN_TYPES,method.getReturnType()) ;
+                return method.getParameterCount() == 0 &&
+                        !ArrayUtils.contains(EXCLUDE_METHODS, method.getName()) &&
+                        !ArrayUtils.contains(EXCLUDE_RETURN_TYPES, method.getReturnType());
             }
         });
         publicMethods.forEach(method -> {
@@ -390,7 +381,7 @@ public  class SparkHyperModel<M extends Model> implements Serializable {
                 }
                 metrics.put(name, performance);
 
-            } catch (IllegalAccessException|InvocationTargetException e) {
+            } catch (IllegalAccessException | InvocationTargetException e) {
                 e.printStackTrace();
             }
         });

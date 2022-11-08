@@ -1,5 +1,8 @@
-package com.ibda.spark.regression;
+package com.ibda.spark.classification;
 
+import com.ibda.spark.regression.ModelColumns;
+import com.ibda.spark.regression.SparkHyperModel;
+import com.ibda.spark.regression.SparkML;
 import com.ibda.spark.util.SparkUtil;
 import com.ibda.util.FilePathUtil;
 import org.apache.spark.ml.Pipeline;
@@ -17,34 +20,34 @@ import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
 import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema;
-import org.junit.Test;
 
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
-public class DecisionTreeClassificationTest extends SparkMLTest<DecisionTreeClassifier,DecisionTreeClassificationModel>{
+public class DecisionTreeClassificationTest extends SparkClassificationTest<DecisionTreeClassifier, DecisionTreeClassificationModel> {
 
     @Override
-    protected void loadBinomialData() {
+    protected void loadTest01Data() {
         modelColumns = new ModelColumns(
                 new String[]{"Age"},
                 new String[]{"Income", "Credit_cards", "Education", "Car_loans"},
                 "Credit_rating");
-        loadDataSet(FilePathUtil.getAbsolutePath("data/credit_decision_tree.csv", false),"csv");
+        loadDataSet(FilePathUtil.getAbsolutePath("data/credit_decision_tree.csv", false), "csv");
     }
+
     @Override
-    protected void loadMultinomialData() {
+    protected void loadTest02Data() {
         //agecat,gender,marital,active,bfast
         modelColumns = new ModelColumns(
                 null,
-                new String[]{"agecat","gender","marital","active"},
+                new String[]{"agecat", "gender", "marital", "active"},
                 "preferbfast");
-        loadDataSet(FilePathUtil.getAbsolutePath("data/cereal_multinomial.csv", false),"csv");
+        loadDataSet(FilePathUtil.getAbsolutePath("data/cereal_multinomial.csv", false), "csv");
     }
 
-    protected void initTrainingParams(){
+    public void initTrainingParams() {
         trainingParams.put("impurity", "gini");
         trainingParams.put("minInfoGain", 0.0d);
         trainingParams.put("maxDepth", 10); //default 5
@@ -54,7 +57,7 @@ public class DecisionTreeClassificationTest extends SparkMLTest<DecisionTreeClas
 
 
     //@Test
-    public void decisionTreeClassificationDemo(){
+    public void decisionTreeClassificationDemo() {
         // Load the data stored in LIBSVM format as a DataFrame.
         SparkSession spark = SparkUtil.buildSparkSession(this.getClass().getSimpleName());
         Dataset<Row> data = spark
@@ -119,7 +122,7 @@ public class DecisionTreeClassificationTest extends SparkMLTest<DecisionTreeClas
     }
 
     //@Test
-    public void decisionTreeRegressionDemo(){
+    public void decisionTreeRegressionDemo() {
         SparkSession spark = SparkUtil.buildSparkSession(this.getClass().getSimpleName());
         // Load the data stored in LIBSVM format as a DataFrame.
         Dataset<Row> data = spark.read().format("libsvm")
@@ -170,7 +173,7 @@ public class DecisionTreeClassificationTest extends SparkMLTest<DecisionTreeClas
 
     //@Test
     public void testCreditRatingClassification() throws IOException {
-        SparkML<DecisionTreeClassifier, DecisionTreeClassificationModel> decisionTree = new SparkML<>(null,DecisionTreeClassifier.class);
+        SparkML<DecisionTreeClassifier, DecisionTreeClassificationModel> decisionTree = new SparkML<>(null, DecisionTreeClassifier.class);
 
         //Credit_rating,Age,Income,Credit_cards,Education,Education
         ModelColumns modelColumns = new ModelColumns(
@@ -178,7 +181,7 @@ public class DecisionTreeClassificationTest extends SparkMLTest<DecisionTreeClas
                 null,
                 "Credit_rating");
 
-        Dataset<Row>  creditRating = decisionTree.loadData(FilePathUtil.getAbsolutePath("data/credit_decision_tree.csv", false));
+        Dataset<Row> creditRating = decisionTree.loadData(FilePathUtil.getAbsolutePath("data/credit_decision_tree.csv", false));
         PipelineModel pipelineModel = modelColumns.fit(creditRating);
         Map<String, Object> param = new HashMap<String, Object>();
         param.put("impurity", "gini");
@@ -193,11 +196,11 @@ public class DecisionTreeClassificationTest extends SparkMLTest<DecisionTreeClas
         Dataset<Row>[] datasets = trainAndTest.randomSplit(new double[]{0.7d, 0.3d});
         Dataset<Row> training = datasets[0];
         Dataset<Row> testing = datasets[1];
-        System.out.println(String.format("记录总数：%1$s,训练集大小：%2$s,测试集大小：%3$s",trainAndTest.count(),training.count(),testing.count()));
+        System.out.println(String.format("记录总数：%1$s,训练集大小：%2$s,测试集大小：%3$s", trainAndTest.count(), training.count(), testing.count()));
 
         //训练
         System.out.println("训练决策树分类模型------------------");
-        SparkHyperModel<DecisionTreeClassificationModel> treeModel = decisionTree.fit(training, modelColumns,pipelineModel, param);
+        SparkHyperModel<DecisionTreeClassificationModel> treeModel = decisionTree.fit(training, modelColumns, pipelineModel, param);
         System.out.println("训练模型结果及性能\n:" + treeModel);
         System.out.println(treeModel.getModel().toDebugString());
         //评估
@@ -214,11 +217,11 @@ public class DecisionTreeClassificationTest extends SparkMLTest<DecisionTreeClas
         predicted.show();
 
         //预测单个数据
-        Row[] rows = (Row[])predicted.select("regression_features_vector").head(20);
-        Arrays.stream(rows).forEach(row->{
-            GenericRowWithSchema gRow = (GenericRowWithSchema)row;
-            Vector data = (Vector)gRow.values()[0];
-            double label = decisionTree.predict(treeModel.getModel(),data);
+        Row[] rows = (Row[]) predicted.select("regression_features_vector").head(20);
+        Arrays.stream(rows).forEach(row -> {
+            GenericRowWithSchema gRow = (GenericRowWithSchema) row;
+            Vector data = (Vector) gRow.values()[0];
+            double label = decisionTree.predict(treeModel.getModel(), data);
             System.out.println(data.toString() + ":" + label);
         });
 
@@ -226,31 +229,31 @@ public class DecisionTreeClassificationTest extends SparkMLTest<DecisionTreeClas
         //模型读写
         System.out.println("测试读写模型---------------");
         String modelPath = FilePathUtil.getAbsolutePath("output/credit_rating_decision_tree.model", true);
-        System.out.println("保存及加载模型："  + modelPath);
+        System.out.println("保存及加载模型：" + modelPath);
         treeModel.saveModel(modelPath);
 
-        SparkHyperModel<DecisionTreeClassificationModel> result3= SparkHyperModel.loadFromModelFile(modelPath, DecisionTreeClassificationModel.class);
-        Map<String, Object> metrics2 = result3.evaluate(testing, modelColumns,pipelineModel );
+        SparkHyperModel<DecisionTreeClassificationModel> result3 = SparkHyperModel.loadFromModelFile(modelPath, DecisionTreeClassificationModel.class);
+        Map<String, Object> metrics2 = result3.evaluate(testing, modelColumns, pipelineModel);
         System.out.println("评估存储模型性能\n:" + metrics2);
 
         System.out.println("使用存储模型进行预测\n:");
-        Dataset<Row> predicted2 = decisionTree.predict(predicting,modelColumns,pipelineModel,result3.getModel());
+        Dataset<Row> predicted2 = decisionTree.predict(predicting, modelColumns, pipelineModel, result3.getModel());
         predicted2.show();
     }
 
     //@Test
     public void testCarScoreRegression() throws IOException {
         //car,age,gender,inccat,ed,marital
-        SparkML<DecisionTreeRegressor, DecisionTreeRegressionModel> treeRegression = new SparkML<>(null,DecisionTreeRegressor.class);
+        SparkML<DecisionTreeRegressor, DecisionTreeRegressionModel> treeRegression = new SparkML<>(null, DecisionTreeRegressor.class);
 
         //car,age,gender,inccat,ed,marital
         ModelColumns modelColumns = new ModelColumns(
-                new String[]{"age", "inccat","gender", "ed", "marital"},
+                new String[]{"age", "inccat", "gender", "ed", "marital"},
                 null,
                 new String[]{"gender"},
                 "car");
 
-        Dataset<Row>  carSales = treeRegression.loadData(FilePathUtil.getAbsolutePath("data/car_decision_tree.csv", false));
+        Dataset<Row> carSales = treeRegression.loadData(FilePathUtil.getAbsolutePath("data/car_decision_tree.csv", false));
         PipelineModel pipelineModel = modelColumns.fit(carSales);
         Map<String, Object> param = new HashMap<String, Object>();
         param.put("impurity", "variance");
@@ -265,11 +268,11 @@ public class DecisionTreeClassificationTest extends SparkMLTest<DecisionTreeClas
         Dataset<Row>[] datasets = trainAndTest.randomSplit(new double[]{0.7d, 0.3d});
         Dataset<Row> training = datasets[0];
         Dataset<Row> testing = datasets[1];
-        System.out.println(String.format("记录总数：%1$s,训练集大小：%2$s,测试集大小：%3$s",trainAndTest.count(),training.count(),testing.count()));
+        System.out.println(String.format("记录总数：%1$s,训练集大小：%2$s,测试集大小：%3$s", trainAndTest.count(), training.count(), testing.count()));
 
         //训练
         System.out.println("训练决策树回归模型------------------");
-        SparkHyperModel<DecisionTreeRegressionModel> treeModel = treeRegression.fit(training, modelColumns,pipelineModel, param);
+        SparkHyperModel<DecisionTreeRegressionModel> treeModel = treeRegression.fit(training, modelColumns, pipelineModel, param);
         System.out.println("训练模型结果及性能\n:" + treeModel);
         System.out.println(treeModel.getModel().toDebugString());
         //评估
@@ -286,11 +289,11 @@ public class DecisionTreeClassificationTest extends SparkMLTest<DecisionTreeClas
         predicted.show();
 
         //预测单个数据
-        Row[] rows = (Row[])predicted.select("regression_features_vector").head(20);
-        Arrays.stream(rows).forEach(row->{
-            GenericRowWithSchema gRow = (GenericRowWithSchema)row;
-            Vector data = (Vector)gRow.values()[0];
-            double label = treeRegression.predict(treeModel.getModel(),data);
+        Row[] rows = (Row[]) predicted.select("regression_features_vector").head(20);
+        Arrays.stream(rows).forEach(row -> {
+            GenericRowWithSchema gRow = (GenericRowWithSchema) row;
+            Vector data = (Vector) gRow.values()[0];
+            double label = treeRegression.predict(treeModel.getModel(), data);
             System.out.println(data.toString() + ":" + label);
         });
 
@@ -298,15 +301,15 @@ public class DecisionTreeClassificationTest extends SparkMLTest<DecisionTreeClas
         //模型读写
         System.out.println("测试读写模型---------------");
         String modelPath = FilePathUtil.getAbsolutePath("output/car_tree_regression.model", true);
-        System.out.println("保存及加载模型："  + modelPath);
+        System.out.println("保存及加载模型：" + modelPath);
         treeModel.saveModel(modelPath);
 
-        SparkHyperModel<DecisionTreeRegressionModel> result3= SparkHyperModel.loadFromModelFile(modelPath, DecisionTreeRegressionModel.class);
-        Map<String, Object> metrics2 = result3.evaluate(testing, modelColumns,pipelineModel );
+        SparkHyperModel<DecisionTreeRegressionModel> result3 = SparkHyperModel.loadFromModelFile(modelPath, DecisionTreeRegressionModel.class);
+        Map<String, Object> metrics2 = result3.evaluate(testing, modelColumns, pipelineModel);
         System.out.println("评估存储模型性能\n:" + metrics2);
 
         System.out.println("使用存储模型进行预测\n:");
-        Dataset<Row> predicted2 = treeRegression.predict(predicting,modelColumns,pipelineModel,result3.getModel());
+        Dataset<Row> predicted2 = treeRegression.predict(predicting, modelColumns, pipelineModel, result3.getModel());
         predicted2.show();
     }
 }

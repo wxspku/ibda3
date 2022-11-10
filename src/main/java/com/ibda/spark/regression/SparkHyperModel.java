@@ -228,8 +228,13 @@ public class SparkHyperModel<M extends Model> implements Serializable {
         Map<String, Object> metrics = new LinkedHashMap<>();
         if (evaluateMethod != null) {
             Object summary = ReflectUtil.invoke(model, "evaluate", testing);
+            Dataset<Row> predictions = ReflectUtil.invoke(summary, "predictions");
+            metrics.put(PREDICTIONS_KEY, predictions);
+            if (model instanceof RegressionModel){
+                metrics.putAll(getRegressionMetrics(modelCols,predictions));
+            }
             metrics.putAll(this.buildMetrics(summary));
-            metrics.put(PREDICTIONS_KEY, ReflectUtil.invoke(summary, "predictions"));
+
         } else {
             Dataset<Row> evaluated = model.transform(testing);
             metrics.put(PREDICTIONS_KEY, evaluated);
@@ -242,14 +247,33 @@ public class SparkHyperModel<M extends Model> implements Serializable {
                 MulticlassMetrics classificationMetrics = evaluator.getMetrics(evaluated);
                 metrics.putAll(this.buildMetrics(classificationMetrics));
             } else if (model instanceof RegressionModel) {
-                RegressionEvaluator evaluator = new RegressionEvaluator();
-                evaluator.setLabelCol(modelCols.labelCol);
-                evaluator.setPredictionCol(modelCols.predictCol);
-                RegressionMetrics regressionMetrics = evaluator.getMetrics(evaluated);
-                metrics.putAll(this.buildMetrics(regressionMetrics));
+                metrics.putAll(getRegressionMetrics(modelCols,evaluated));
             }
         }
 
+        return metrics;
+    }
+
+    private  Map<String, Object> getRegressionMetrics(ModelColumns modelCols, Dataset<Row> evaluated) {
+        Map<String, Object> metrics = new LinkedHashMap<>();
+        RegressionEvaluator evaluator = new RegressionEvaluator();
+        evaluator.setLabelCol(modelCols.labelCol);
+        evaluator.setPredictionCol(modelCols.predictCol);
+        RegressionMetrics regressionMetrics = evaluator.getMetrics(evaluated);
+        metrics.putAll(this.buildMetrics(regressionMetrics));
+        //SStot = Σ(观测值y-均值y)^2 , SSreg = Σ(预测值y-均值y)^2, SSerr = Σ(观测值y-预测值y)^2、SSy = Σy^2*w
+        //r2 = 1 - SSerr/SStot、explainedVariance = SSreg / n、meanSquaredError = SSerr/n
+        //devianceResiduals: 残差范围，min - max
+        //非线性回归时，SStot ≠ SSreg + SSerr，且没有自由度的说法，或者说自由度为n
+        String[] methodNames = new String[]{"SSy","SStot","SSreg","SSerr"};
+        Arrays.stream(methodNames).forEach(methodName->{
+            Method method= ReflectUtil.getMethodByName(RegressionMetrics.class,methodName);
+            if (method != null){
+                method.setAccessible(true);
+                Object value = ReflectUtil.invoke(regressionMetrics,method);
+                metrics.put(methodName,value);
+            }
+        });
         return metrics;
     }
 
@@ -335,6 +359,10 @@ public class SparkHyperModel<M extends Model> implements Serializable {
                 Object summary = summaryModel.summary();
                 if (ReflectUtil.getMethodByName(summary.getClass(), "predictions") != null) {
                     this.predictions = ReflectUtil.invoke(summary, "predictions");
+                    if (model instanceof RegressionModel){
+                        trainingMetrics.putAll(getRegressionMetrics(modelColumns,predictions));
+                    }
+
                 }
                 trainingMetrics.putAll(buildMetrics(summary));
             }
@@ -363,7 +391,7 @@ public class SparkHyperModel<M extends Model> implements Serializable {
         List<Method> publicMethods = ReflectUtil.getPublicMethods(summary.getClass(), new Filter<Method>() {
             @Override
             public boolean accept(Method method) {
-                return method.getParameterCount() == 0 &&
+                return method.getName().equals("residuals") || method.getParameterCount() == 0 &&
                         !ArrayUtils.contains(EXCLUDE_METHODS, method.getName()) &&
                         !ArrayUtils.contains(EXCLUDE_RETURN_TYPES, method.getReturnType());
             }
@@ -379,8 +407,15 @@ public class SparkHyperModel<M extends Model> implements Serializable {
                     //混淆矩阵，行为实际值，列为预测值，转换为数组时是先列后行进行转换
                     metrics.put("confusionMatrix", confusionMatrix);
                 }
-                metrics.put(name, performance);
-
+                if (name.equals("residuals")){
+                    Dataset<Row> residuals = (Dataset<Row>)performance;
+                    Row[] minMax = (Row[])residuals.select("residuals").summary("min","max").take(2);
+                    metrics.put("residuals_min",minMax[0].get(1));
+                    metrics.put("residuals_max",minMax[1].get(1));
+                }
+                else{
+                    metrics.put(name, performance);
+                }
             } catch (IllegalAccessException | InvocationTargetException e) {
                 e.printStackTrace();
             }

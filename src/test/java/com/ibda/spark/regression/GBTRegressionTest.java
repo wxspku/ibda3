@@ -21,6 +21,6 @@ public class GBTRegressionTest extends SparkRegressionTest<GBTRegressor, GBTRegr
     @Override
     protected void loadTest02Data() {
         super.loadTest02Data();
-        trainingParams.put("maxBins", 64);
+        trainingParams.put("maxBins", 128);
     }
 }

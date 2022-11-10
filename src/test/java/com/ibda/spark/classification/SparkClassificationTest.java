@@ -5,10 +5,7 @@ import com.ibda.spark.regression.ModelColumns;
 import com.ibda.util.FilePathUtil;
 import org.apache.spark.ml.Estimator;
 import org.apache.spark.ml.Model;
-import org.apache.spark.ml.classification.ClassificationModel;
-import org.apache.spark.ml.classification.GBTClassificationModel;
-import org.apache.spark.ml.classification.LinearSVCModel;
-import org.apache.spark.ml.classification.OneVsRestModel;
+import org.apache.spark.ml.classification.*;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -37,10 +34,11 @@ public abstract class SparkClassificationTest<E extends Estimator, M extends Mod
 
     @Test
     public void test02MachineLearning() throws IOException {
-        //GBTClassificationModel、LinearSVCModel只支持二分类
+        //GBTClassificationModel、LinearSVCModel、FMClassificationModel只支持二分类
         if (ClassificationModel.class.isAssignableFrom(modelClass) &&
                 !modelClass.equals(GBTClassificationModel.class) &&
-                !modelClass.equals(LinearSVCModel.class) ||
+                !modelClass.equals(LinearSVCModel.class) &&
+                !modelClass.equals(FMClassificationModel.class)||
                 modelClass.equals(OneVsRestModel.class)) {
             loadTest02Data();
             test01LearningEvaluatingPredicting();

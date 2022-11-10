@@ -1,17 +1,18 @@
 package com.ibda.spark.regression;
 
+import cn.hutool.core.util.ReflectUtil;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.spark.ml.Pipeline;
 import org.apache.spark.ml.PipelineModel;
 import org.apache.spark.ml.PipelineStage;
-import org.apache.spark.ml.feature.OneHotEncoder;
-import org.apache.spark.ml.feature.PCA;
-import org.apache.spark.ml.feature.StringIndexer;
-import org.apache.spark.ml.feature.VectorAssembler;
+import org.apache.spark.ml.evaluation.RegressionEvaluator;
+import org.apache.spark.ml.feature.*;
+import org.apache.spark.mllib.evaluation.RegressionMetrics;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 
 import java.io.Serializable;
+import java.lang.reflect.Method;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -26,6 +27,7 @@ public class ModelColumns implements Serializable {
     private static final String VECTOR_SUFFIX = "_vector";
     private static final String INDEX_SUFFIX = "_index";
     public static final String PCA_SUFFIX = "_pca";
+    public static final String SCALED_SUFFIX = "_scaled";
 
     public static ModelColumns MODEL_COLUMNS_DEFAULT =  new ModelColumns();
 
@@ -145,6 +147,17 @@ public class ModelColumns implements Serializable {
      * @return
      */
     public PipelineModel fit(Dataset<Row> trainingData) {
+        return fit(trainingData, false);
+    }
+
+    /**
+     * 根据数据集训练PipelineModel，Pipeline和数据集相关，最多包括StringIndexer、OneHotEncoder、VectorAssembler三个步骤，
+     * 其中StringIndexer使用alphabetAsc排序自动生成Index，如果需要外部的编码表，需要在外面自行处理
+     * @param trainingData
+     * @param scaleByMinMax
+     * @return
+     */
+    public PipelineModel fit(Dataset<Row> trainingData, boolean scaleByMinMax) {
         //StringIndexer的fit样本自动编码 alphabetAsc
         List<PipelineStage> stageList = new ArrayList<PipelineStage>();
         if (stringCategoryFeatures != null) {
@@ -217,6 +230,15 @@ public class ModelColumns implements Serializable {
                     .setHandleInvalid("skip");
             stageList.add(assembler);
         }
+        //最大值，最小值缩放
+        if (scaleByMinMax){
+            String outputCol = featuresCol + SCALED_SUFFIX;
+            MinMaxScaler scaler = new MinMaxScaler()
+                    .setInputCol(featuresCol)
+                    .setOutputCol(outputCol);
+            stageList.add(scaler);
+            featuresCol = outputCol;
+        }
         //PCA TODO 如何设置合理的K
         /*String outputCol = featuresCol + PCA_SUFFIX;
         PCA pca = new PCA()
@@ -248,5 +270,6 @@ public class ModelColumns implements Serializable {
         }
         return result.select(labelCol,featuresCol);
     }
+
 
 }

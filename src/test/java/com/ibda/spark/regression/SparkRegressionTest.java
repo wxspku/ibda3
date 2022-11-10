@@ -7,6 +7,16 @@ import org.apache.spark.ml.Model;
 
 import java.io.IOException;
 
+/**
+ * ExplainedVariance = SSR / N :  regression. explainedVariance = $\sum_i (\hat{y_i} - \bar{y})^2^ / n$
+ * SSE = MSE * K
+ *
+ * r2 = ExplainedVariance * N /(ExplainedVariance * N + MSE * K)
+ *
+ *  regression score. explainedVariance = 1 - variance(y - \hat{y}) / variance(y)
+ * @param <E>
+ * @param <M>
+ */
 public abstract class SparkRegressionTest<E extends Estimator, M extends Model> extends SparkMLTest<E, M> {
 
 

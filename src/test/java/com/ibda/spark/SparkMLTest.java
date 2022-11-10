@@ -26,6 +26,8 @@ import java.util.Map;
 
 @FixMethodOrder(MethodSorters.NAME_ASCENDING)
 public abstract class SparkMLTest<E extends Estimator, M extends Model> {
+    //特征是否进行最大值
+    protected boolean scaleByMinMax = false;
     /**
      * 训练类
      */
@@ -51,7 +53,7 @@ public abstract class SparkMLTest<E extends Estimator, M extends Model> {
         datasets[1] = trainAndTests[1];
         datasets[2] = allData.filter(modelColumns.getLabelCol() + " is null");
         System.out.println(String.format("记录总数：%1$s,训练集大小：%2$s,测试集大小：%3$s,预测集大小：%4$s", allData.count(), datasets[0].count(), datasets[1].count(), datasets[2].count()));
-        pipelineModel = modelColumns.fit(datasets[0]);
+        pipelineModel = modelColumns.fit(datasets[0],scaleByMinMax);
     }
 
     /**
@@ -75,6 +77,9 @@ public abstract class SparkMLTest<E extends Estimator, M extends Model> {
         System.out.println("训练模型：" + estimatorClass.getSimpleName() + "/" + modelClass.getSimpleName());
         SparkHyperModel<M> hyperModel = sparkLearning.fit(datasets[0], modelColumns, pipelineModel, trainingParams);
         System.out.println("训练模型结果及性能\n:" + hyperModel);
+        if (hyperModel.getPredictions() != null){
+            hyperModel.getPredictions().show();
+        }
         //评估
         Map<String, Object> metrics = hyperModel.evaluate(datasets[1]);
         System.out.println("评估模型性能\n:" + metrics);

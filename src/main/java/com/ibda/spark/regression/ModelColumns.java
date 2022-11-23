@@ -38,7 +38,8 @@ public class ModelColumns implements Serializable {
     String labelCol = "label";         //观察结果标签列
     String predictCol = "prediction";       //预测结果标签列
     String probabilityCol = "probability";   //或然列，逻辑回归时的概率值
-
+    String weightCol = null; //权重列
+    String[] additionCols = null; //附加列，参与建模的非特征列，建模前转换需要保留该列
     /**
      * 使用缺省值
      */
@@ -128,17 +129,37 @@ public class ModelColumns implements Serializable {
         return probabilityCol;
     }
 
+    public String getWeightCol() {
+        return weightCol;
+    }
+
+    public void setWeightCol(String weightCol) {
+        this.weightCol = weightCol;
+    }
+
+    public String[] getAdditionCols() {
+        return additionCols;
+    }
+
+    public void setAdditionCols(String[] additionCols) {
+        this.additionCols = additionCols;
+    }
+
     @Override
     public String toString() {
         return "ModelColumns{" +
                 "noneCategoryFeatures=" + Arrays.toString(noneCategoryFeatures) +
                 ", categoryFeatures=" + Arrays.toString(categoryFeatures) +
+                ", stringCategoryFeatures=" + Arrays.toString(stringCategoryFeatures) +
                 ", featuresCol='" + featuresCol + '\'' +
                 ", labelCol='" + labelCol + '\'' +
                 ", predictCol='" + predictCol + '\'' +
                 ", probabilityCol='" + probabilityCol + '\'' +
+                ", weightCol='" + weightCol + '\'' +
+                ", additionCols=" + Arrays.toString(additionCols) +
                 '}';
     }
+
 
     /**
      * 根据数据集训练PipelineModel，Pipeline和数据集相关，最多包括StringIndexer、OneHotEncoder、VectorAssembler三个步骤，
@@ -207,8 +228,7 @@ public class ModelColumns implements Serializable {
             OneHotEncoder encoder = new OneHotEncoder()
                     .setInputCols(categoryFeatures)
                     .setOutputCols(categoryFeatureVectors)
-                    .setDropLast(true)
-                    .setHandleInvalid("keep");
+                    .setDropLast(true);//setHandleInvalid("keep")
             stageList.add(encoder);
         }
 
@@ -268,7 +288,19 @@ public class ModelColumns implements Serializable {
         if (!ArrayUtils.contains(columns, featuresCol)){
             result = model.transform(source);
         }
-        return result.select(labelCol,featuresCol);
+        //保留建模需要的所有列labelCol,featuresCol,weightCol,additionCols
+        List<String> modelingCols = new ArrayList<String>();
+        modelingCols.add(featuresCol);
+        if (weightCol != null){
+            modelingCols.add(weightCol);
+        }
+        if (additionCols != null){
+            modelingCols.addAll(Arrays.asList(additionCols));
+        }
+        String[] modelCols = new String[modelingCols.size()];
+        modelingCols.toArray(modelCols);
+        result = result.select(labelCol,modelCols);
+        return result;
     }
 
 

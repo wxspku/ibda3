@@ -304,6 +304,13 @@
             </Attribute>
           </value>
         </entry>
+        <entry key="\src\test\resources\data\1950-2014_torn.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
         <entry key="\src\test\resources\data\2017_Climate_Investment_Funds.csv">
           <value>
             <Attribute>
@@ -416,7 +423,21 @@
             </Attribute>
           </value>
         </entry>
+        <entry key="\src\test\resources\data\car_insurance_claim.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
         <entry key="\src\test\resources\data\car_sales_linear.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\src\test\resources\data\cities-states-zipcode.csv">
           <value>
             <Attribute>
               <option name="separator" value="," />
@@ -613,6 +634,13 @@
           </value>
         </entry>
         <entry key="\src\test\resources\data\with_comments.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\src\test\resources\ships_glm.csv">
           <value>
             <Attribute>
               <option name="separator" value="," />

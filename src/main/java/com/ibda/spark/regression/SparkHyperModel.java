@@ -13,6 +13,7 @@ import org.apache.spark.ml.classification.OneVsRestModel;
 import org.apache.spark.ml.evaluation.MulticlassClassificationEvaluator;
 import org.apache.spark.ml.evaluation.RegressionEvaluator;
 import org.apache.spark.ml.linalg.Vector;
+import org.apache.spark.ml.regression.GeneralizedLinearRegressionModel;
 import org.apache.spark.ml.regression.LinearRegressionModel;
 import org.apache.spark.ml.regression.RegressionModel;
 import org.apache.spark.ml.util.HasTrainingSummary;
@@ -263,7 +264,7 @@ public class SparkHyperModel<M extends Model> implements Serializable {
         metrics.putAll(this.buildMetrics(regressionMetrics));
         //SStot = Σ(观测值y-均值y)^2 , SSreg = Σ(预测值y-均值y)^2, SSerr = Σ(观测值y-预测值y)^2、SSy = Σy^2*w
         //r2 = 1 - SSerr/SStot、explainedVariance = SSreg / n、meanSquaredError = SSerr/n
-        //devianceResiduals: 残差范围，min - max
+        //devianceResiduals: 残差范围，[min, max]
         //非线性回归时，SStot ≠ SSreg + SSerr，且没有自由度的说法，或者说自由度为n
         String[] methodNames = new String[]{"SSy","SStot","SSreg","SSerr"};
         Arrays.stream(methodNames).forEach(methodName->{
@@ -329,6 +330,7 @@ public class SparkHyperModel<M extends Model> implements Serializable {
     protected void initCoefficients() {
         //回归系数
         if (model instanceof LinearRegressionModel ||
+                model instanceof GeneralizedLinearRegressionModel ||
                 model instanceof LogisticRegressionModel &&
                         ReflectUtil.invoke(model, "numClasses").equals(2)) {//线性回归或二元逻辑回归
             double[] array = ((Vector) ReflectUtil.invoke(model, "coefficients")).toArray();
@@ -391,7 +393,8 @@ public class SparkHyperModel<M extends Model> implements Serializable {
         List<Method> publicMethods = ReflectUtil.getPublicMethods(summary.getClass(), new Filter<Method>() {
             @Override
             public boolean accept(Method method) {
-                return method.getName().equals("residuals") || method.getParameterCount() == 0 &&
+                //method.getName().equals("residuals") ||
+                return  method.getParameterCount() == 0 &&
                         !ArrayUtils.contains(EXCLUDE_METHODS, method.getName()) &&
                         !ArrayUtils.contains(EXCLUDE_RETURN_TYPES, method.getReturnType());
             }
@@ -407,15 +410,14 @@ public class SparkHyperModel<M extends Model> implements Serializable {
                     //混淆矩阵，行为实际值，列为预测值，转换为数组时是先列后行进行转换
                     metrics.put("confusionMatrix", confusionMatrix);
                 }
-                if (name.equals("residuals")){
+                else if (name.equals("residuals")){
                     Dataset<Row> residuals = (Dataset<Row>)performance;
                     Row[] minMax = (Row[])residuals.select("residuals").summary("min","max").take(2);
                     metrics.put("residuals_min",minMax[0].get(1));
                     metrics.put("residuals_max",minMax[1].get(1));
                 }
-                else{
-                    metrics.put(name, performance);
-                }
+                metrics.put(name, performance);
+
             } catch (IllegalAccessException | InvocationTargetException e) {
                 e.printStackTrace();
             }

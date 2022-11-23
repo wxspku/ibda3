@@ -9,6 +9,9 @@ import org.apache.spark.ml.PredictionModel;
 import org.apache.spark.ml.linalg.Vector;
 import org.apache.spark.ml.param.Param;
 import org.apache.spark.ml.param.ParamMap;
+import org.apache.spark.ml.param.shared.HasWeightCol;
+import org.apache.spark.ml.regression.GeneralizedLinearRegression;
+import org.apache.spark.ml.regression.LinearRegression;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 
@@ -64,13 +67,26 @@ public class SparkML<E extends Estimator,M extends Model> extends BasicStatistic
                                   PipelineModel preProcessModel, Map<String, Object> params){
         //预处理
         Dataset<Row> training = modelCols.transform(trainingData,preProcessModel);
+        training.show();
         //合并参数
         params.put("featuresCol",modelCols.featuresCol);
         params.put("labelCol",modelCols.labelCol);
         params.put("predictionCol",modelCols.predictCol);
         params.put("probabilityCol",modelCols.probabilityCol);
+        if (modelCols.weightCol != null){
+            params.put("weightCol",modelCols.weightCol);
+        }
         //泛型E的class
         E estimator = (E)ReflectUtil.newInstance(eClass);
+        /*if (modelCols.getWeightCol() !=null){
+            if (estimator instanceof GeneralizedLinearRegression ){
+                ((GeneralizedLinearRegression)estimator).setWeightCol(modelCols.getWeightCol());
+            }
+            if (estimator instanceof LinearRegression){
+                ((LinearRegression)estimator).setWeightCol(modelCols.getWeightCol());
+            }
+        }*/
+
         ParamMap paramMap = buildParams(estimator.uid(),params);
         M model = (M)estimator.fit(training,paramMap);
         SparkHyperModel<M> hyperModel = new SparkHyperModel<M>(model,preProcessModel,modelCols);

@@ -13,9 +13,7 @@ import org.apache.spark.ml.classification.OneVsRestModel;
 import org.apache.spark.ml.evaluation.MulticlassClassificationEvaluator;
 import org.apache.spark.ml.evaluation.RegressionEvaluator;
 import org.apache.spark.ml.linalg.Vector;
-import org.apache.spark.ml.regression.GeneralizedLinearRegressionModel;
-import org.apache.spark.ml.regression.LinearRegressionModel;
-import org.apache.spark.ml.regression.RegressionModel;
+import org.apache.spark.ml.regression.*;
 import org.apache.spark.ml.util.HasTrainingSummary;
 import org.apache.spark.ml.util.MLWritable;
 import org.apache.spark.mllib.evaluation.BinaryClassificationMetrics;
@@ -231,7 +229,7 @@ public class SparkHyperModel<M extends Model> implements Serializable {
             Object summary = ReflectUtil.invoke(model, "evaluate", testing);
             Dataset<Row> predictions = ReflectUtil.invoke(summary, "predictions");
             metrics.put(PREDICTIONS_KEY, predictions);
-            if (model instanceof RegressionModel){
+            if (model instanceof RegressionModel ){
                 metrics.putAll(getRegressionMetrics(modelCols,predictions));
             }
             metrics.putAll(this.buildMetrics(summary));
@@ -247,7 +245,7 @@ public class SparkHyperModel<M extends Model> implements Serializable {
                 evaluator.setProbabilityCol(modelCols.probabilityCol);
                 MulticlassMetrics classificationMetrics = evaluator.getMetrics(evaluated);
                 metrics.putAll(this.buildMetrics(classificationMetrics));
-            } else if (model instanceof RegressionModel) {
+            } else if (model instanceof RegressionModel || model instanceof IsotonicRegressionModel) {
                 metrics.putAll(getRegressionMetrics(modelCols,evaluated));
             }
         }
@@ -331,6 +329,7 @@ public class SparkHyperModel<M extends Model> implements Serializable {
         //回归系数
         if (model instanceof LinearRegressionModel ||
                 model instanceof GeneralizedLinearRegressionModel ||
+                model instanceof AFTSurvivalRegressionModel ||
                 model instanceof LogisticRegressionModel &&
                         ReflectUtil.invoke(model, "numClasses").equals(2)) {//线性回归或二元逻辑回归
             double[] array = ((Vector) ReflectUtil.invoke(model, "coefficients")).toArray();

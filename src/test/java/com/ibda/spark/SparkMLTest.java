@@ -3,12 +3,15 @@ package com.ibda.spark;
 import com.ibda.spark.regression.ModelColumns;
 import com.ibda.spark.regression.SparkHyperModel;
 import com.ibda.spark.regression.SparkML;
+import com.ibda.spark.statistics.DescriptiveStatistics;
+import com.ibda.util.AnalysisConst;
 import com.ibda.util.FilePathUtil;
 import org.apache.spark.ml.Estimator;
 import org.apache.spark.ml.Model;
 import org.apache.spark.ml.PipelineModel;
 import org.apache.spark.ml.PredictionModel;
 import org.apache.spark.ml.linalg.Vector;
+import org.apache.spark.ml.regression.IsotonicRegressionModel;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema;
@@ -23,6 +26,7 @@ import java.lang.reflect.ParameterizedType;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Random;
 
 @FixMethodOrder(MethodSorters.NAME_ASCENDING)
 public abstract class SparkMLTest<E extends Estimator, M extends Model> {
@@ -103,7 +107,19 @@ public abstract class SparkMLTest<E extends Estimator, M extends Model> {
                 System.out.println(data.toString() + ":" + label);
             });
         }
-
+        else if (hyperModel.getModel() instanceof IsotonicRegressionModel) {
+            IsotonicRegressionModel model = ((IsotonicRegressionModel) hyperModel.getModel());
+            System.out.println("Boundaries in increasing order: " + model.boundaries() + "\n");
+            System.out.println("Predictions associated with the boundaries: " + model.predictions() + "\n");
+            DescriptiveStatistics descriptiveStatistics = sparkLearning.getDescriptiveStatistics(datasets[0], "features", null,
+                    new AnalysisConst.DescriptiveTarget[]{AnalysisConst.DescriptiveTarget.min, AnalysisConst.DescriptiveTarget.max});
+            for (int i=0;i<=20;i++){
+                Random random = new Random(System.currentTimeMillis() + i);
+                double x = descriptiveStatistics.getMin()[0] + (descriptiveStatistics.getMax()[0]-descriptiveStatistics.getMin()[0]) * random.nextDouble();
+                double y= model.predict(x);
+                System.out.println("x=" + x + ": y=" + y);
+            }
+        }
         //模型读写
         System.out.println("测试读写模型---------------");
         String modelPath = FilePathUtil.getAbsolutePath("output/" + modelClass.getSimpleName() + ".model", true);

@@ -325,6 +325,20 @@
             </Attribute>
           </value>
         </entry>
+        <entry key="\src\test\resources\data\adult.data.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\src\test\resources\data\aft_sample.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
         <entry key="\src\test\resources\data\alt_line_endings.csv">
           <value>
             <Attribute>
@@ -634,13 +648,6 @@
           </value>
         </entry>
         <entry key="\src\test\resources\data\with_comments.csv">
-          <value>
-            <Attribute>
-              <option name="separator" value="," />
-            </Attribute>
-          </value>
-        </entry>
-        <entry key="\src\test\resources\ships_glm.csv">
           <value>
             <Attribute>
               <option name="separator" value="," />

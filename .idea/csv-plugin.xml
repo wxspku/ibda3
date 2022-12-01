@@ -633,6 +633,13 @@
             </Attribute>
           </value>
         </entry>
+        <entry key="\src\test\resources\data\telco_extra_cluster.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
         <entry key="\src\test\resources\data\unsorted-simple-data.csv">
           <value>
             <Attribute>

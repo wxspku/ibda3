@@ -10,9 +10,13 @@ import org.apache.spark.ml.PredictionModel;
 import org.apache.spark.ml.classification.ClassificationModel;
 import org.apache.spark.ml.classification.LogisticRegressionModel;
 import org.apache.spark.ml.classification.OneVsRestModel;
+import org.apache.spark.ml.clustering.KMeansModel;
+import org.apache.spark.ml.evaluation.ClusteringEvaluator;
+import org.apache.spark.ml.evaluation.ClusteringMetrics;
 import org.apache.spark.ml.evaluation.MulticlassClassificationEvaluator;
 import org.apache.spark.ml.evaluation.RegressionEvaluator;
 import org.apache.spark.ml.linalg.Vector;
+import org.apache.spark.ml.param.Param;
 import org.apache.spark.ml.regression.*;
 import org.apache.spark.ml.util.HasTrainingSummary;
 import org.apache.spark.ml.util.MLWritable;
@@ -23,6 +27,7 @@ import org.apache.spark.mllib.linalg.Matrix;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
+import scala.Some;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -42,7 +47,7 @@ public class SparkHyperModel<M extends Model> implements Serializable {
     protected static final String[] EXCLUDE_METHODS =
             new String[]{"getClass", "toString", "hashCode", "wait", "notify", "notifyAll", "asBinary"};
 
-    protected static final Class[] EXCLUDE_RETURN_TYPES = new Class[]{Dataset.class,
+    protected static final Class[] EXCLUDE_RETURN_TYPES = new Class[]{
             BinaryClassificationMetrics.class,
             SparkSession.class};
 
@@ -54,10 +59,10 @@ public class SparkHyperModel<M extends Model> implements Serializable {
      */
     public static <M extends Model> SparkHyperModel<M> loadFromModelFile(String path, Class<M> clz) {
         Method method = ReflectUtil.getMethodByName(clz, "load");
-        if (method != null){
-                M model = ReflectUtil.invokeStatic(method, path);
-                SparkHyperModel<M> hyperModel = new SparkHyperModel<>(model);
-                return hyperModel;
+        if (method != null) {
+            M model = ReflectUtil.invokeStatic(method, path);
+            SparkHyperModel<M> hyperModel = new SparkHyperModel<>(model);
+            return hyperModel;
         }
         return null;
 
@@ -169,7 +174,7 @@ public class SparkHyperModel<M extends Model> implements Serializable {
 
     @Override
     public String toString() {
-        return "RegressionHyperModel{" +
+        return "SparkHyperModel{" +
                 "model=" + model +
                 ", preProcessModel=" + preProcessModel +
                 ", modelColumns=" + modelColumns +
@@ -229,8 +234,8 @@ public class SparkHyperModel<M extends Model> implements Serializable {
             Object summary = ReflectUtil.invoke(model, "evaluate", testing);
             Dataset<Row> predictions = ReflectUtil.invoke(summary, "predictions");
             metrics.put(PREDICTIONS_KEY, predictions);
-            if (model instanceof RegressionModel ){
-                metrics.putAll(getRegressionMetrics(modelCols,predictions));
+            if (model instanceof RegressionModel) {
+                metrics.putAll(getRegressionMetrics(modelCols, predictions));
             }
             metrics.putAll(this.buildMetrics(summary));
 
@@ -246,31 +251,71 @@ public class SparkHyperModel<M extends Model> implements Serializable {
                 MulticlassMetrics classificationMetrics = evaluator.getMetrics(evaluated);
                 metrics.putAll(this.buildMetrics(classificationMetrics));
             } else if (model instanceof RegressionModel || model instanceof IsotonicRegressionModel) {
-                metrics.putAll(getRegressionMetrics(modelCols,evaluated));
+                metrics.putAll(getRegressionMetrics(modelCols, evaluated));
+            } else if (model instanceof KMeansModel) {
+                metrics.putAll(getClusteringMetrics(modelCols, evaluated));
             }
         }
 
         return metrics;
     }
 
-    private  Map<String, Object> getRegressionMetrics(ModelColumns modelCols, Dataset<Row> evaluated) {
+    /**
+     * 获取模型参数
+     *
+     * @param paramName
+     * @return
+     */
+    private Object getModelParam(String paramName) {
+        Object paramValue = model.paramMap().get(new Param(model.uid(), paramName, null));
+        return paramValue == null? null: ((Some)paramValue).value();
+    }
+
+    private Map<String, Object> getClusteringMetrics(ModelColumns modelCols, Dataset<Row> evaluated) {
+        Map<String, Object> metrics = new LinkedHashMap<>();
+        if (evaluated.count() > 0) {
+            ClusteringEvaluator evaluator = new ClusteringEvaluator();
+            evaluator.setFeaturesCol(modelCols.featuresCol);
+            if (modelCols.weightCol != null) {
+                evaluator.setWeightCol(modelCols.weightCol);
+            }
+            Object measure = getModelParam("distanceMeasure");
+            // "squaredEuclidean" (default), "cosine")
+            if (measure != null && measure.equals("cosine")){
+                evaluator.setDistanceMeasure((String)measure);
+            }
+            for (String predictCol:new String[]{modelCols.labelCol,modelCols.predictCol}){
+                evaluator.setPredictionCol(predictCol);
+                ClusteringMetrics clusteringMetrics = evaluator.getMetrics(evaluated);
+                metrics.put(predictCol + "_distanceMeasure", clusteringMetrics.getDistanceMeasure());
+                metrics.put(predictCol + "_silhouette", clusteringMetrics.silhouette()); //轮廓系数
+            }
+
+        }
+        return metrics;
+    }
+
+    private Map<String, Object> getRegressionMetrics(ModelColumns modelCols, Dataset<Row> evaluated) {
         Map<String, Object> metrics = new LinkedHashMap<>();
         RegressionEvaluator evaluator = new RegressionEvaluator();
         evaluator.setLabelCol(modelCols.labelCol);
         evaluator.setPredictionCol(modelCols.predictCol);
+        if (modelCols.weightCol != null) {
+            evaluator.setWeightCol(modelCols.weightCol);
+        }
         RegressionMetrics regressionMetrics = evaluator.getMetrics(evaluated);
         metrics.putAll(this.buildMetrics(regressionMetrics));
         //SStot = Σ(观测值y-均值y)^2 , SSreg = Σ(预测值y-均值y)^2, SSerr = Σ(观测值y-预测值y)^2、SSy = Σy^2*w
         //r2 = 1 - SSerr/SStot、explainedVariance = SSreg / n、meanSquaredError = SSerr/n
         //devianceResiduals: 残差范围，[min, max]
         //非线性回归时，SStot ≠ SSreg + SSerr，且没有自由度的说法，或者说自由度为n
-        String[] methodNames = new String[]{"SSy","SStot","SSreg","SSerr"};
-        Arrays.stream(methodNames).forEach(methodName->{
-            Method method= ReflectUtil.getMethodByName(RegressionMetrics.class,methodName);
-            if (method != null){
+        String[] methodNames = new String[]{"SSy", "SStot", "SSreg", "SSerr"};
+        Arrays.stream(methodNames).forEach(methodName -> {
+            Method method = ReflectUtil.getMethodByName(RegressionMetrics.class, methodName);
+            if (method != null) {
                 method.setAccessible(true);
-                Object value = ReflectUtil.invoke(regressionMetrics,method);
-                metrics.put(methodName,value);
+                Object value = ReflectUtil.invoke(regressionMetrics, method);
+                metrics.put(methodName, value);
             }
         });
         return metrics;
@@ -351,6 +396,20 @@ public class SparkHyperModel<M extends Model> implements Serializable {
                 i++;
             }
         }
+        else {
+            //clusterCenters() 聚类
+            Method method = ReflectUtil.getMethodByName(model.getClass(),"clusterCenters");
+            if (method != null){
+                try {
+                    Vector[] clusterCenters = (Vector[])method.invoke(model);
+                    trainingMetrics.put("clusterCenters",clusterCenters);
+                } catch (IllegalAccessException|InvocationTargetException e) {
+                    e.printStackTrace();
+                }
+
+            }
+
+        }
     }
 
     protected void initMetrics() {
@@ -360,8 +419,8 @@ public class SparkHyperModel<M extends Model> implements Serializable {
                 Object summary = summaryModel.summary();
                 if (ReflectUtil.getMethodByName(summary.getClass(), "predictions") != null) {
                     this.predictions = ReflectUtil.invoke(summary, "predictions");
-                    if (model instanceof RegressionModel){
-                        trainingMetrics.putAll(getRegressionMetrics(modelColumns,predictions));
+                    if (model instanceof RegressionModel) {
+                        trainingMetrics.putAll(getRegressionMetrics(modelColumns, predictions));
                     }
 
                 }
@@ -393,7 +452,7 @@ public class SparkHyperModel<M extends Model> implements Serializable {
             @Override
             public boolean accept(Method method) {
                 //method.getName().equals("residuals") ||
-                return  method.getParameterCount() == 0 &&
+                return method.getParameterCount() == 0 &&
                         !ArrayUtils.contains(EXCLUDE_METHODS, method.getName()) &&
                         !ArrayUtils.contains(EXCLUDE_RETURN_TYPES, method.getReturnType());
             }
@@ -408,12 +467,11 @@ public class SparkHyperModel<M extends Model> implements Serializable {
                     Matrix confusionMatrix = ((MulticlassMetrics) performance).confusionMatrix();
                     //混淆矩阵，行为实际值，列为预测值，转换为数组时是先列后行进行转换
                     metrics.put("confusionMatrix", confusionMatrix);
-                }
-                else if (name.equals("residuals")){
-                    Dataset<Row> residuals = (Dataset<Row>)performance;
-                    Row[] minMax = (Row[])residuals.select("residuals").summary("min","max").take(2);
-                    metrics.put("residuals_min",minMax[0].get(1));
-                    metrics.put("residuals_max",minMax[1].get(1));
+                } else if (name.equals("residuals")) {
+                    Dataset<Row> residuals = (Dataset<Row>) performance;
+                    Row[] minMax = (Row[]) residuals.select("residuals").summary("min", "max").take(2);
+                    metrics.put("residuals_min", minMax[0].get(1));
+                    metrics.put("residuals_max", minMax[1].get(1));
                 }
                 metrics.put(name, performance);
 

@@ -22,10 +22,11 @@ import java.util.stream.Collectors;
  */
 public class ModelColumns implements Serializable {
 
-    private static final String REGRESSION_FEATURES_VECTOR = "regression_features_vector";
+    private static final String REGRESSION_FEATURES_VECTOR = "features_vector";
     private static final String REGRESSION_FEATURES_DEFAULT = "features";
     private static final String VECTOR_SUFFIX = "_vector";
     private static final String INDEX_SUFFIX = "_index";
+    private static final String IMPUTED_SUFFIX = "_imputed";
     public static final String PCA_SUFFIX = "_pca";
     public static final String SCALED_SUFFIX = "_scaled";
 
@@ -218,6 +219,20 @@ public class ModelColumns implements Serializable {
                 newNoneCategoryFeatures.toArray(noneCategoryFeatures);
             }
         }
+        //非分类属性处理缺省值，支持mode,mean,median,custom
+        if (noneCategoryFeatures != null) {
+            String[] noneCategoryFeaturesImputed = new String[noneCategoryFeatures.length];
+            Arrays.stream(noneCategoryFeatures).map(feature -> feature + IMPUTED_SUFFIX)
+                    .collect(Collectors.toList())
+                    .toArray(noneCategoryFeaturesImputed);
+            Imputer imputer = new Imputer()
+                    .setInputCols(noneCategoryFeatures)
+                    .setOutputCols(noneCategoryFeaturesImputed)
+                    .setStrategy("mean");//["mean", "median", "mode"]
+            stageList.add(imputer);
+            noneCategoryFeatures = noneCategoryFeaturesImputed;
+        }
+
         //OneHotEncoder
         String[] categoryFeatureVectors = null;
         if (categoryFeatures != null) {
@@ -244,10 +259,12 @@ public class ModelColumns implements Serializable {
                 System.arraycopy(noneCategoryFeatures, 0, features,
                         categoryFeatureVectors==null?0:categoryFeatureVectors.length, noneCategoryFeatures.length);
             }
+            //handleInvalid:'skip' (filter out rows with invalid data), 'error' (throw an error),
+            // or 'keep' (return relevant number of NaN in the output)
             VectorAssembler assembler = new VectorAssembler()
                     .setInputCols(features)
                     .setOutputCol(featuresCol)
-                    .setHandleInvalid("skip");
+                    .setHandleInvalid("keep");
             stageList.add(assembler);
         }
         //最大值，最小值缩放

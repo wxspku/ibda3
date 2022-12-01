@@ -32,6 +32,9 @@ import java.util.Random;
 public abstract class SparkMLTest<E extends Estimator, M extends Model> {
     //特征是否进行最大值
     protected boolean scaleByMinMax = false;
+
+    //是否划分训练集和测试集
+    protected boolean trainingSplit = true;
     /**
      * 训练类
      */
@@ -47,17 +50,24 @@ public abstract class SparkMLTest<E extends Estimator, M extends Model> {
     protected Dataset<Row>[] datasets = new Dataset[3];
     protected Map<String, Object> trainingParams = new HashMap<String, Object>();
 
+    //处理缺省值
+    protected void imputeTrainingDataset(){
+
+    }
+
     protected void loadDataSet(String datafile, String format) {
         System.out.println("加载数据集:" + datafile);
         Dataset allData = sparkLearning.loadData(datafile, format);
         Dataset<Row> trainAndTest = allData.filter(modelColumns.getLabelCol() + " is not null");
         //划分训练集、测试集
-        Dataset<Row>[] trainAndTests = trainAndTest.randomSplit(new double[]{0.7d, 0.3d}, System.currentTimeMillis());
+        double[] splitting = trainingSplit ? new double[]{0.7d, 0.3d} : new double[]{1d, 0.0d};
+        Dataset<Row>[] trainAndTests = trainAndTest.randomSplit(splitting, System.currentTimeMillis());
         datasets[0] = trainAndTests[0];
         datasets[1] = trainAndTests[1];
         datasets[2] = allData.filter(modelColumns.getLabelCol() + " is null");
+        imputeTrainingDataset();
         System.out.println(String.format("记录总数：%1$s,训练集大小：%2$s,测试集大小：%3$s,预测集大小：%4$s", allData.count(), datasets[0].count(), datasets[1].count(), datasets[2].count()));
-        pipelineModel = modelColumns.fit(datasets[0],scaleByMinMax);
+        pipelineModel = modelColumns.fit(datasets[0], scaleByMinMax);
     }
 
     /**
@@ -81,8 +91,8 @@ public abstract class SparkMLTest<E extends Estimator, M extends Model> {
         System.out.println("训练模型：" + estimatorClass.getSimpleName() + "/" + modelClass.getSimpleName());
         SparkHyperModel<M> hyperModel = sparkLearning.fit(datasets[0], modelColumns, pipelineModel, trainingParams);
         System.out.println("训练模型结果及性能\n:" + hyperModel);
-        if (hyperModel.getPredictions() != null){
-            hyperModel.getPredictions().show();
+        if (hyperModel.getPredictions() != null) {
+            hyperModel.getPredictions().show(100);
         }
         //评估
         Map<String, Object> metrics = hyperModel.evaluate(datasets[1]);
@@ -106,17 +116,16 @@ public abstract class SparkMLTest<E extends Estimator, M extends Model> {
                 double label = sparkLearning.predict((PredictionModel) hyperModel.getModel(), data);
                 System.out.println(data.toString() + ":" + label);
             });
-        }
-        else if (hyperModel.getModel() instanceof IsotonicRegressionModel) {
+        } else if (hyperModel.getModel() instanceof IsotonicRegressionModel) {
             IsotonicRegressionModel model = ((IsotonicRegressionModel) hyperModel.getModel());
             System.out.println("Boundaries in increasing order: " + model.boundaries() + "\n");
             System.out.println("Predictions associated with the boundaries: " + model.predictions() + "\n");
             DescriptiveStatistics descriptiveStatistics = sparkLearning.getDescriptiveStatistics(datasets[0], "features", null,
                     new AnalysisConst.DescriptiveTarget[]{AnalysisConst.DescriptiveTarget.min, AnalysisConst.DescriptiveTarget.max});
-            for (int i=0;i<=20;i++){
+            for (int i = 0; i <= 20; i++) {
                 Random random = new Random(System.currentTimeMillis() + i);
-                double x = descriptiveStatistics.getMin()[0] + (descriptiveStatistics.getMax()[0]-descriptiveStatistics.getMin()[0]) * random.nextDouble();
-                double y= model.predict(x);
+                double x = descriptiveStatistics.getMin()[0] + (descriptiveStatistics.getMax()[0] - descriptiveStatistics.getMin()[0]) * random.nextDouble();
+                double y = model.predict(x);
                 System.out.println("x=" + x + ": y=" + y);
             }
         }
@@ -137,7 +146,8 @@ public abstract class SparkMLTest<E extends Estimator, M extends Model> {
 
     @Test
     public void test02MachineLearning() throws IOException {
-
+        loadTest02Data();
+        test01LearningEvaluatingPredicting();
     }
 
     //加载test01的测试数据

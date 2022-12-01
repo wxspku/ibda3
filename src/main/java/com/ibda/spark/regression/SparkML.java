@@ -78,15 +78,6 @@ public class SparkML<E extends Estimator,M extends Model> extends BasicStatistic
         }
         //泛型E的class
         E estimator = (E)ReflectUtil.newInstance(eClass);
-        /*if (modelCols.getWeightCol() !=null){
-            if (estimator instanceof GeneralizedLinearRegression ){
-                ((GeneralizedLinearRegression)estimator).setWeightCol(modelCols.getWeightCol());
-            }
-            if (estimator instanceof LinearRegression){
-                ((LinearRegression)estimator).setWeightCol(modelCols.getWeightCol());
-            }
-        }*/
-
         ParamMap paramMap = buildParams(estimator.uid(),params);
         M model = (M)estimator.fit(training,paramMap);
         SparkHyperModel<M> hyperModel = new SparkHyperModel<M>(model,preProcessModel,modelCols);

@@ -65,7 +65,8 @@ public abstract class SparkClusteringTest<E extends Estimator, M extends Model> 
         //ds.write().option("header",true).csv("output/telco_extra_cluster.csv");
         datasets[0] = ds;
     }
-    @Test
+
+    @Override
     public void test01LearningEvaluatingPredicting() throws IOException {
         //训练
         System.out.println("训练聚类模型：" + estimatorClass.getSimpleName() + "/" + modelClass.getSimpleName());

@@ -10,6 +10,8 @@ import org.apache.spark.ml.PredictionModel;
 import org.apache.spark.ml.classification.ClassificationModel;
 import org.apache.spark.ml.classification.LogisticRegressionModel;
 import org.apache.spark.ml.classification.OneVsRestModel;
+import org.apache.spark.ml.clustering.BisectingKMeansModel;
+import org.apache.spark.ml.clustering.GaussianMixtureModel;
 import org.apache.spark.ml.clustering.KMeansModel;
 import org.apache.spark.ml.evaluation.ClusteringEvaluator;
 import org.apache.spark.ml.evaluation.ClusteringMetrics;
@@ -252,8 +254,10 @@ public class SparkHyperModel<M extends Model> implements Serializable {
                 metrics.putAll(this.buildMetrics(classificationMetrics));
             } else if (model instanceof RegressionModel || model instanceof IsotonicRegressionModel) {
                 metrics.putAll(getRegressionMetrics(modelCols, evaluated));
-            } else if (model instanceof KMeansModel) {
-                metrics.putAll(getClusteringMetrics(modelCols, evaluated));
+            } else if (model instanceof KMeansModel || model instanceof BisectingKMeansModel ||
+                        model instanceof GaussianMixtureModel) {
+                String distanceMeasure = (String)getModelParam("distanceMeasure");
+                metrics.putAll(getClusteringMetrics(modelCols, evaluated,distanceMeasure));
             }
         }
 
@@ -268,10 +272,10 @@ public class SparkHyperModel<M extends Model> implements Serializable {
      */
     private Object getModelParam(String paramName) {
         Object paramValue = model.paramMap().get(new Param(model.uid(), paramName, null));
-        return paramValue == null? null: ((Some)paramValue).value();
+        return paramValue instanceof scala.Some? ((Some)paramValue).value():null;
     }
 
-    private Map<String, Object> getClusteringMetrics(ModelColumns modelCols, Dataset<Row> evaluated) {
+    public static Map<String, Object> getClusteringMetrics(ModelColumns modelCols, Dataset<Row> evaluated,String distanceMeasure) {
         Map<String, Object> metrics = new LinkedHashMap<>();
         if (evaluated.count() > 0) {
             ClusteringEvaluator evaluator = new ClusteringEvaluator();
@@ -279,10 +283,10 @@ public class SparkHyperModel<M extends Model> implements Serializable {
             if (modelCols.weightCol != null) {
                 evaluator.setWeightCol(modelCols.weightCol);
             }
-            Object measure = getModelParam("distanceMeasure");
+            evaluator.setDistanceMeasure(distanceMeasure);
             // "squaredEuclidean" (default), "cosine")
-            if (measure != null && measure.equals("cosine")){
-                evaluator.setDistanceMeasure((String)measure);
+            if (distanceMeasure != null && distanceMeasure.equals("cosine")){
+                evaluator.setDistanceMeasure(distanceMeasure);
             }
             for (String predictCol:new String[]{modelCols.labelCol,modelCols.predictCol}){
                 evaluator.setPredictionCol(predictCol);
@@ -295,7 +299,7 @@ public class SparkHyperModel<M extends Model> implements Serializable {
         return metrics;
     }
 
-    private Map<String, Object> getRegressionMetrics(ModelColumns modelCols, Dataset<Row> evaluated) {
+    public static Map<String, Object> getRegressionMetrics(ModelColumns modelCols, Dataset<Row> evaluated) {
         Map<String, Object> metrics = new LinkedHashMap<>();
         RegressionEvaluator evaluator = new RegressionEvaluator();
         evaluator.setLabelCol(modelCols.labelCol);
@@ -304,7 +308,7 @@ public class SparkHyperModel<M extends Model> implements Serializable {
             evaluator.setWeightCol(modelCols.weightCol);
         }
         RegressionMetrics regressionMetrics = evaluator.getMetrics(evaluated);
-        metrics.putAll(this.buildMetrics(regressionMetrics));
+        metrics.putAll(buildMetrics(regressionMetrics));
         //SStot = Σ(观测值y-均值y)^2 , SSreg = Σ(预测值y-均值y)^2, SSerr = Σ(观测值y-预测值y)^2、SSy = Σy^2*w
         //r2 = 1 - SSerr/SStot、explainedVariance = SSreg / n、meanSquaredError = SSerr/n
         //devianceResiduals: 残差范围，[min, max]
@@ -437,7 +441,7 @@ public class SparkHyperModel<M extends Model> implements Serializable {
      * @param summary
      * @return
      */
-    protected Map<String, Object> buildMetrics(Object summary) {
+    protected static Map<String, Object> buildMetrics(Object summary) {
         Map<String, Object> metrics = new LinkedHashMap<>();
         //通过属性获取性能指标
         try {

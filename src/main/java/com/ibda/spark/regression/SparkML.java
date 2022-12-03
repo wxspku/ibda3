@@ -9,9 +9,6 @@ import org.apache.spark.ml.PredictionModel;
 import org.apache.spark.ml.linalg.Vector;
 import org.apache.spark.ml.param.Param;
 import org.apache.spark.ml.param.ParamMap;
-import org.apache.spark.ml.param.shared.HasWeightCol;
-import org.apache.spark.ml.regression.GeneralizedLinearRegression;
-import org.apache.spark.ml.regression.LinearRegression;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 
@@ -67,19 +64,8 @@ public class SparkML<E extends Estimator,M extends Model> extends BasicStatistic
                                   PipelineModel preProcessModel, Map<String, Object> params){
         //预处理
         Dataset<Row> training = modelCols.transform(trainingData,preProcessModel);
-        training.show();
-        //合并参数
-        params.put("featuresCol",modelCols.featuresCol);
-        params.put("labelCol",modelCols.labelCol);
-        params.put("predictionCol",modelCols.predictCol);
-        params.put("probabilityCol",modelCols.probabilityCol);
-        if (modelCols.weightCol != null){
-            params.put("weightCol",modelCols.weightCol);
-        }
-        //泛型E的class
-        E estimator = (E)ReflectUtil.newInstance(eClass);
-        ParamMap paramMap = buildParams(estimator.uid(),params);
-        M model = (M)estimator.fit(training,paramMap);
+        E estimator = buildEstimator(modelCols, params);
+        M model = (M)estimator.fit(training);
         SparkHyperModel<M> hyperModel = new SparkHyperModel<M>(model,preProcessModel,modelCols);
         if (hyperModel.getTrainingMetrics().isEmpty()){
             //通过训练集评估训练结果指标
@@ -88,6 +74,21 @@ public class SparkML<E extends Estimator,M extends Model> extends BasicStatistic
         }
         return hyperModel;
 
+    }
+
+    protected E buildEstimator(ModelColumns modelCols, Map<String, Object> params) {
+        //合并参数
+        params.put("featuresCol", modelCols.featuresCol);
+        params.put("labelCol", modelCols.labelCol);
+        params.put("predictionCol", modelCols.predictCol);
+        params.put("probabilityCol", modelCols.probabilityCol);
+        if (modelCols.weightCol != null){
+            params.put("weightCol", modelCols.weightCol);
+        }
+        //泛型E的class
+        E estimator = (E)ReflectUtil.newInstance(eClass);
+        buildParams(estimator,params);
+        return estimator;
     }
 
     /**
@@ -116,18 +117,55 @@ public class SparkML<E extends Estimator,M extends Model> extends BasicStatistic
     }
 
     /**
+     * k-折交叉验证方式训练模型，将训练数据划分为numFolds份，针对每个参数组合，执行numFolds轮训练和评估，numFolds轮评估的均值即为该参数组合的最终评估值
+     * 每轮训练选取其中numFolds-1份数据进行模型训练，剩余1份数据用于模型评估。选择性能最优的模型输出
+     * 假设参数组合数为m，则训练轮次：m * numFolds，因此性能较低，且非常耗费资源
+     * @param trainingData
+     * @param modelCols
+     * @param preProcessModel
+     * @param params     已明确，无需评估的参数
+     * @param evaluatorClass     评估类，用于评估模型
+     * @param numFolds   交叉验证的折数，惯例数为10，或选取K≈log(n),且n/K>3d，d为特征数，也可以设置其他数，设为0时，由系统自动选取
+     * @param paramGrid  候选参数集Map，key为参数名，value为该参数的多个评估值，bool类型的参数,value为空
+     * @return
+     */
+    public SparkHyperModel<M> fitByCrossValidator(Dataset<Row> trainingData, ModelColumns modelCols,
+                                                  PipelineModel preProcessModel, Map<String, Object> params,
+                                                  Class evaluatorClass, int numFolds, Map<String, Object[]> paramGrid){
+        return null;
+    }
+
+    /**
+     * 简单训练集划分方式验证训练模型，将训练集按照指定比例7:3进行固定划分，70%用于训练，30%用于评估
+     * 针对每个参数组合，只执行一次训练和评估
+     * @param trainingData
+     * @param modelCols
+     * @param preProcessModel
+     * @param params
+     * @param evaluatorClass     评估类，用于评估模型
+     * @param paramGrid
+     * @return
+     */
+    public SparkHyperModel<M> fitByTrainSplitValidator(Dataset<Row> trainingData, ModelColumns modelCols,
+                                                       PipelineModel preProcessModel, Map<String, Object> params,
+                                                       Class evaluatorClass, Map<String, Object[]> paramGrid){
+        return null;
+    }
+    /**
      * 构建训练用的参数集
-     * @param parent
+     * @param estimator
      * @param params
      * @return
      */
-    protected ParamMap buildParams(String parent, Map<String, Object> params){
+    protected ParamMap buildParams(Estimator estimator, Map<String, Object> params){
         if ((params == null || params.isEmpty())){
             return ParamMap.empty();
         }
+        String parent = estimator.uid();
         ParamMap paramMap = new ParamMap();
         params.entrySet().stream().forEach(entry->{
             Param param = new Param(parent,entry.getKey(),null);
+            estimator.set(param,entry.getValue());
             paramMap.put(param,entry.getValue());
         });
         return paramMap;

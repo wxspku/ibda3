@@ -19,6 +19,7 @@ import org.apache.spark.ml.evaluation.MulticlassClassificationEvaluator;
 import org.apache.spark.ml.evaluation.RegressionEvaluator;
 import org.apache.spark.ml.linalg.Vector;
 import org.apache.spark.ml.param.Param;
+import org.apache.spark.ml.recommendation.ALSModel;
 import org.apache.spark.ml.regression.*;
 import org.apache.spark.ml.util.HasTrainingSummary;
 import org.apache.spark.ml.util.MLWritable;
@@ -252,7 +253,8 @@ public class SparkHyperModel<M extends Model> implements Serializable {
                 evaluator.setProbabilityCol(modelCols.probabilityCol);
                 MulticlassMetrics classificationMetrics = evaluator.getMetrics(evaluated);
                 metrics.putAll(this.buildMetrics(classificationMetrics));
-            } else if (model instanceof RegressionModel || model instanceof IsotonicRegressionModel) {
+            } else if (model instanceof RegressionModel || model instanceof IsotonicRegressionModel ||
+                        model instanceof ALSModel) {
                 metrics.putAll(getRegressionMetrics(modelCols, evaluated));
             } else if (model instanceof KMeansModel || model instanceof BisectingKMeansModel ||
                         model instanceof GaussianMixtureModel) {

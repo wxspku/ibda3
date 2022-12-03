@@ -14,6 +14,7 @@ import org.apache.spark.ml.linalg.Vector;
 import org.apache.spark.ml.regression.IsotonicRegressionModel;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
+import org.apache.spark.sql.SparkSession;
 import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema;
 import org.junit.After;
 import org.junit.Before;
@@ -44,6 +45,7 @@ public abstract class SparkMLTest<E extends Estimator, M extends Model> {
      */
     protected Class<M> modelClass = (Class<M>) ((ParameterizedType) this.getClass().getGenericSuperclass()).getActualTypeArguments()[1];
     protected SparkML<E, M> sparkLearning = null;
+    protected SparkSession spark = null;
     protected PipelineModel pipelineModel = null;
     protected ModelColumns modelColumns = null;
     //数组：训练集、测试集、预测集
@@ -58,15 +60,20 @@ public abstract class SparkMLTest<E extends Estimator, M extends Model> {
     protected void loadDataSet(String datafile, String format) {
         System.out.println("加载数据集:" + datafile);
         Dataset allData = sparkLearning.loadData(datafile, format);
-        Dataset<Row> trainAndTest = allData.filter(modelColumns.getLabelCol() + " is not null");
+        splitDataset(allData);
+    }
+
+    protected void splitDataset(Dataset originalData) {
+        Dataset<Row> trainAndTest = originalData.filter(modelColumns.getLabelCol() + " is not null");
         //划分训练集、测试集
         double[] splitting = trainingSplit ? new double[]{0.7d, 0.3d} : new double[]{1d, 0.0d};
         Dataset<Row>[] trainAndTests = trainAndTest.randomSplit(splitting, System.currentTimeMillis());
         datasets[0] = trainAndTests[0];
         datasets[1] = trainAndTests[1];
-        datasets[2] = allData.filter(modelColumns.getLabelCol() + " is null");
+        //预测集
+        datasets[2] = originalData.filter(modelColumns.getLabelCol() + " is null");
         imputeTrainingDataset();
-        System.out.println(String.format("记录总数：%1$s,训练集大小：%2$s,测试集大小：%3$s,预测集大小：%4$s", allData.count(), datasets[0].count(), datasets[1].count(), datasets[2].count()));
+        System.out.println(String.format("记录总数：%1$s,训练集大小：%2$s,测试集大小：%3$s,预测集大小：%4$s", originalData.count(), datasets[0].count(), datasets[1].count(), datasets[2].count()));
         pipelineModel = modelColumns.fit(datasets[0], scaleByMinMax);
     }
 
@@ -76,6 +83,7 @@ public abstract class SparkMLTest<E extends Estimator, M extends Model> {
     @Before
     public void prepareData() {
         sparkLearning = new SparkML<>(estimatorClass);
+        spark = sparkLearning.getSpark();
         loadTest01Data();
         initTrainingParams();
     }

@@ -1,5 +1,6 @@
 package com.ibda.spark.regression;
 
+
 import cn.hutool.core.util.ReflectUtil;
 import com.ibda.spark.statistics.BasicStatistics;
 import org.apache.spark.ml.Estimator;
@@ -7,8 +8,10 @@ import org.apache.spark.ml.Model;
 import org.apache.spark.ml.PipelineModel;
 import org.apache.spark.ml.PredictionModel;
 import org.apache.spark.ml.linalg.Vector;
+import org.apache.spark.ml.param.BooleanParam;
 import org.apache.spark.ml.param.Param;
 import org.apache.spark.ml.param.ParamMap;
+import org.apache.spark.ml.tuning.ParamGridBuilder;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 
@@ -64,8 +67,10 @@ public class SparkML<E extends Estimator,M extends Model> extends BasicStatistic
                                   PipelineModel preProcessModel, Map<String, Object> params){
         //预处理
         Dataset<Row> training = modelCols.transform(trainingData,preProcessModel);
-        E estimator = buildEstimator(modelCols, params);
-        M model = (M)estimator.fit(training);
+        //泛型E的class
+        E estimator = (E)ReflectUtil.newInstance(eClass);
+        ParamMap paramMap = populateEstimator(estimator, modelCols, params);
+        M model = (M)estimator.fit(training,paramMap);
         SparkHyperModel<M> hyperModel = new SparkHyperModel<M>(model,preProcessModel,modelCols);
         if (hyperModel.getTrainingMetrics().isEmpty()){
             //通过训练集评估训练结果指标
@@ -76,20 +81,7 @@ public class SparkML<E extends Estimator,M extends Model> extends BasicStatistic
 
     }
 
-    protected E buildEstimator(ModelColumns modelCols, Map<String, Object> params) {
-        //合并参数
-        params.put("featuresCol", modelCols.featuresCol);
-        params.put("labelCol", modelCols.labelCol);
-        params.put("predictionCol", modelCols.predictCol);
-        params.put("probabilityCol", modelCols.probabilityCol);
-        if (modelCols.weightCol != null){
-            params.put("weightCol", modelCols.weightCol);
-        }
-        //泛型E的class
-        E estimator = (E)ReflectUtil.newInstance(eClass);
-        buildParams(estimator,params);
-        return estimator;
-    }
+
 
     /**
      * 预测数据集
@@ -151,23 +143,68 @@ public class SparkML<E extends Estimator,M extends Model> extends BasicStatistic
                                                        Class evaluatorClass, Map<String, Object[]> paramGrid){
         return null;
     }
+
     /**
-     * 构建训练用的参数集
-     * @param estimator
+     *
+     * @param modelCols
      * @param params
      * @return
      */
-    protected ParamMap buildParams(Estimator estimator, Map<String, Object> params){
-        if ((params == null || params.isEmpty())){
-            return ParamMap.empty();
+    protected ParamMap populateEstimator(E estimator, ModelColumns modelCols, Map<String, Object> params) {
+        //合并参数
+        params.put("featuresCol", modelCols.featuresCol);
+        params.put("labelCol", modelCols.labelCol);
+        params.put("predictionCol", modelCols.predictCol);
+        params.put("probabilityCol", modelCols.probabilityCol);
+        if (modelCols.weightCol != null){
+            params.put("weightCol", modelCols.weightCol);
         }
-        String parent = estimator.uid();
-        ParamMap paramMap = new ParamMap();
-        params.entrySet().stream().forEach(entry->{
-            Param param = new Param(parent,entry.getKey(),null);
-            estimator.set(param,entry.getValue());
-            paramMap.put(param,entry.getValue());
-        });
+
+        ParamMap paramMap = ParamMap.empty();
+        if ((params != null && !params.isEmpty())){
+            String parent = estimator.uid();
+            params.entrySet().stream().forEach(entry -> {
+                Param param = new Param(parent, entry.getKey(), null);
+                try{
+                    if (estimator.isDefined(param)) {
+                        estimator.set(param, entry.getValue());
+                    }
+                }
+                catch (Exception ex){
+                    //不需要的参数，忽略
+                }
+                paramMap.put(param, entry.getValue());
+            });
+        }
         return paramMap;
+    }
+
+    protected ParamMap[] buildParamGrid(E estimator,Map<String, Object[]> paramGrid){
+        ParamGridBuilder builder = new ParamGridBuilder();
+        String parent = estimator.uid();
+        paramGrid.entrySet().stream().forEach(entry -> {
+            if (entry.getValue() == null){
+                BooleanParam param = new BooleanParam(parent, entry.getKey(), null);
+                builder.addGrid(param);
+            }
+            else{
+                /**
+                 * ParamGridBuilder	addGrid(DoubleParam param, double[] values)
+                 * Adds a double param with multiple values.
+                 * ParamGridBuilder	addGrid(FloatParam param, float[] values)
+                 * Adds a float param with multiple values.
+                 * ParamGridBuilder	addGrid(IntParam param, int[] values)
+                 * Adds an int param with multiple values.
+                 * ParamGridBuilder	addGrid(LongParam param, long[] values)
+                 */
+                Param param = new Param(parent, entry.getKey(), null);
+                /*scala.collection.mutable.TreeSet treeSet = new scala.collection.mutable.TreeSet();
+                ListSet listSet = new ListSet();
+                listSet.
+                builder.addGrid(param, listSet);*/
+            }
+
+        });
+        return builder.build();
     }
 }

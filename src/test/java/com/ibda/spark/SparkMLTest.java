@@ -98,9 +98,13 @@ public abstract class SparkMLTest<E extends Estimator, M extends Model> {
         //训练
         System.out.println("训练模型：" + estimatorClass.getSimpleName() + "/" + modelClass.getSimpleName());
         SparkHyperModel<M> hyperModel = sparkLearning.fit(datasets[0], modelColumns, pipelineModel, trainingParams);
+        evaluatingPredicting(hyperModel);
+    }
+
+    protected void evaluatingPredicting(SparkHyperModel<M> hyperModel) throws IOException {
         System.out.println("训练模型结果及性能\n:" + hyperModel);
         if (hyperModel.getPredictions() != null) {
-            hyperModel.getPredictions().show(100);
+            hyperModel.getPredictions().show();
         }
         //评估
         Map<String, Object> metrics = hyperModel.evaluate(datasets[1]);

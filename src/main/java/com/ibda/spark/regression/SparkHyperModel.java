@@ -285,7 +285,6 @@ public class SparkHyperModel<M extends Model> implements Serializable {
             if (modelCols.weightCol != null) {
                 evaluator.setWeightCol(modelCols.weightCol);
             }
-            evaluator.setDistanceMeasure(distanceMeasure);
             // "squaredEuclidean" (default), "cosine")
             if (distanceMeasure != null && distanceMeasure.equals("cosine")){
                 evaluator.setDistanceMeasure(distanceMeasure);

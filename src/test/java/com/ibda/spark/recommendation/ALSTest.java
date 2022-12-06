@@ -6,13 +6,18 @@ import com.ibda.spark.regression.SparkHyperModel;
 import com.ibda.util.FilePathUtil;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.spark.api.java.JavaRDD;
+import org.apache.spark.ml.evaluation.RankingEvaluator;
+import org.apache.spark.ml.evaluation.RegressionEvaluator;
 import org.apache.spark.ml.recommendation.ALS;
 import org.apache.spark.ml.recommendation.ALSModel;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
+import org.junit.Test;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.HashMap;
+import java.util.Map;
 
 public class ALSTest extends SparkMLTest<ALS, ALSModel> {
 
@@ -76,7 +81,7 @@ public class ALSTest extends SparkMLTest<ALS, ALSModel> {
 
     @Override
     public void initTrainingParams() {
-        trainingParams.put("maxIter", 50);
+        trainingParams.put("maxIter", 100);
         trainingParams.put("regParam", 0.2);
         trainingParams.put("userCol", "userId");
         trainingParams.put("itemCol", "itemId");
@@ -128,7 +133,20 @@ public class ALSTest extends SparkMLTest<ALS, ALSModel> {
 
     @Override
     public void test02MachineLearning() throws IOException {
-        loadTest02Data();
-        test01LearningEvaluatingPredicting();
+
+    }
+    Map<String,Object[]> tuningParamGrid = new HashMap<String,Object[]>();
+    @Test
+    public void testValidationSplitTuning() throws IOException {
+       //trainingParams.remove("maxIter");
+        trainingParams.remove("regParam");
+
+        //tuningParamGrid.put("maxIter",new Integer[]{50,100,200});
+        tuningParamGrid.put("regParam",new Double[]{0.1,0.2,0.5});
+        //tuningParamGrid.put("rank",new Integer[]{5,10,20});
+        //训练
+        System.out.println("ValidationSplit训练模型：" + estimatorClass.getSimpleName() + "/" + modelClass.getSimpleName());
+        SparkHyperModel<ALSModel> hyperModel = sparkLearning.fitByTrainSplitValidator(datasets[0], modelColumns, pipelineModel, trainingParams, tuningParamGrid, RegressionEvaluator.class,0.7d);
+        super.evaluatingPredicting(hyperModel);
     }
 }

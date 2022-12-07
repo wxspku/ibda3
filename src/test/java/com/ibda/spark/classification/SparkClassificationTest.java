@@ -6,6 +6,8 @@ import com.ibda.util.FilePathUtil;
 import org.apache.spark.ml.Estimator;
 import org.apache.spark.ml.Model;
 import org.apache.spark.ml.classification.*;
+import org.apache.spark.ml.evaluation.MulticlassClassificationEvaluator;
+import org.apache.spark.ml.evaluation.RegressionEvaluator;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -47,4 +49,17 @@ public abstract class SparkClassificationTest<E extends Estimator, M extends Mod
         }
     }
 
+    @Override
+    public void testValidationSplitTuning() throws IOException {
+        testTuning(false, MulticlassClassificationEvaluator.class);
+    }
+
+    @Override
+    public void testCrossValidationTuning() throws IOException {
+        testTuning(true,MulticlassClassificationEvaluator.class);
+    }
+
+    protected void initTuningGrid() {
+
+    }
 }

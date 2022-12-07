@@ -4,6 +4,8 @@ import com.ibda.spark.SparkMLTest;
 import com.ibda.util.FilePathUtil;
 import org.apache.spark.ml.Estimator;
 import org.apache.spark.ml.Model;
+import org.apache.spark.ml.evaluation.MulticlassClassificationEvaluator;
+import org.apache.spark.ml.evaluation.RegressionEvaluator;
 
 import java.io.IOException;
 
@@ -48,6 +50,18 @@ public abstract class SparkRegressionTest<E extends Estimator, M extends Model> 
         loadDataSet(FilePathUtil.getAbsolutePath("data/car_decision_tree.csv", false), "csv");
     }
 
+    @Override
+    public void testValidationSplitTuning() throws IOException {
+        testTuning(false, RegressionEvaluator.class);
+    }
 
+    @Override
+    public void testCrossValidationTuning() throws IOException {
+        testTuning(true,RegressionEvaluator.class);
+    }
+    @Override
+    protected void initTuningGrid() {
+
+    }
 
 }

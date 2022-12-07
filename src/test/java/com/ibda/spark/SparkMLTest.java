@@ -10,7 +10,10 @@ import org.apache.spark.ml.Estimator;
 import org.apache.spark.ml.Model;
 import org.apache.spark.ml.PipelineModel;
 import org.apache.spark.ml.PredictionModel;
+import org.apache.spark.ml.evaluation.Evaluator;
+import org.apache.spark.ml.evaluation.RegressionEvaluator;
 import org.apache.spark.ml.linalg.Vector;
+import org.apache.spark.ml.recommendation.ALSModel;
 import org.apache.spark.ml.regression.IsotonicRegressionModel;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
@@ -51,6 +54,7 @@ public abstract class SparkMLTest<E extends Estimator, M extends Model> {
     //数组：训练集、测试集、预测集
     protected Dataset<Row>[] datasets = new Dataset[3];
     protected Map<String, Object> trainingParams = new HashMap<String, Object>();
+    protected Map<String,Object[]> tuningParamGrid = new HashMap<String,Object[]>();
 
     //处理缺省值
     protected void imputeTrainingDataset(){
@@ -172,4 +176,36 @@ public abstract class SparkMLTest<E extends Estimator, M extends Model> {
     }
 
     public abstract void initTrainingParams();
+
+    protected void testTuning(boolean crossValidation, Class<? extends Evaluator> evaluatorClass) throws IOException {
+        initTuningGrid();
+        if (tuningParamGrid.isEmpty()){
+            throw new RuntimeException("未设置候选参数,无法进行调优训练！");
+        };
+        //训练
+        SparkHyperModel<M> hyperModel = null;
+        if (crossValidation){
+            System.out.println("CrossValidation训练模型：" + estimatorClass.getSimpleName() + "/" + modelClass.getSimpleName());
+            hyperModel = sparkLearning.fitByCrossValidator(datasets[0], modelColumns, pipelineModel, trainingParams, tuningParamGrid, evaluatorClass,5);
+        }
+        else{
+            System.out.println("ValidationSplit训练模型：" + estimatorClass.getSimpleName() + "/" + modelClass.getSimpleName());
+            hyperModel = sparkLearning.fitByTrainSplitValidator(datasets[0], modelColumns, pipelineModel, trainingParams, tuningParamGrid, evaluatorClass,0.7d);
+        }
+        evaluatingPredicting(hyperModel);
+    }
+
+    protected void initTuningGrid() {
+
+    }
+
+    @Test
+    public void testValidationSplitTuning() throws IOException {
+
+    }
+
+    @Test
+    public void testCrossValidationTuning() throws IOException {
+
+    }
 }

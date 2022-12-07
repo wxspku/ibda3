@@ -51,6 +51,12 @@ public class SparkML<E extends Estimator, M extends Model> extends BasicStatisti
             Dataset<Row> training = modelCols.transform(trainingData, preProcessModel);
             //泛型E的class
             E estimator = (E) ReflectUtil.newInstance(eClass);
+            //paramGrid和params重名时，以paramGrid为准，去除params中的同名参数
+            paramGrid.keySet().stream().forEach(key->{
+                if (params.containsKey(key)){
+                    params.remove(key);
+                }
+            });
             populateParams(estimator, modelCols, params);
             ParamMap[] hyperGrid = buildParamGrid(estimator, paramGrid);
             M model = hyperFit(estimator, training, params, hyperGrid, tuningParams);
@@ -165,7 +171,7 @@ public class SparkML<E extends Estimator, M extends Model> extends BasicStatisti
      * @param preProcessModel
      * @param params          已明确，无需评估的参数
      * @param evaluatorClass  评估类，用于评估模型
-     * @param numFolds        交叉验证的折数，惯例数为10，或选取K≈log(n),且n/K>3d，d为特征数，也可以设置其他数，设为0时，由系统自动选取
+     * @param numFolds        交叉验证的折数，至少3以上，惯例数为10，或选取K≈log(n),且n/K>3d，d为特征数，也可以设置其他数，设为0时，由系统自动选取
      * @param paramGrid       候选参数集Map，key为参数名，value为该参数的多个评估值，bool类型的参数,value为空
      * @return
      */
@@ -175,17 +181,17 @@ public class SparkML<E extends Estimator, M extends Model> extends BasicStatisti
         HyperEstimator hyperEstimator = new HyperEstimator() {
             @Override
             Model hyperFit(Estimator estimator, Dataset training, Map params, ParamMap[] paramGrid, Map tuningParams) {
-                Class evaluatorClass = (Class) tuningParams.get("evaluatorClass");
+                Evaluator evaluator = buildEvaluator(tuningParams, params);
                 CrossValidator crossValidator = new CrossValidator()
                         .setEstimator(estimator)
-                        .setEvaluator((Evaluator) ReflectUtil.newInstance(evaluatorClass))
+                        .setEvaluator(evaluator)
                         .setEstimatorParamMaps(paramGrid)
                         .setNumFolds((int) tuningParams.get("numFolds"))  // Use 3+ in practice
-                        .setParallelism(4);
+                        .setParallelism(8);
 
                 // Run train cross validation, and choose the best set of parameters.
-                CrossValidatorModel splitModel = crossValidator.fit(training);
-                M model = (M) splitModel.bestModel();
+                CrossValidatorModel crossValidatorModel = crossValidator.fit(training);
+                M model = (M) crossValidatorModel.bestModel();
                 return model;
             }
         };
@@ -194,6 +200,8 @@ public class SparkML<E extends Estimator, M extends Model> extends BasicStatisti
         tuningParams.put("numFolds", numFolds == 0 ? 10 : numFolds);
         return hyperEstimator.fit(trainingData, modelCols, preProcessModel, params, paramGrid, tuningParams);
     }
+
+
 
     /**
      * 简单训练集划分方式验证训练模型，将训练集按照指定比例7:3进行固定划分，70%用于训练，30%用于评估
@@ -214,15 +222,13 @@ public class SparkML<E extends Estimator, M extends Model> extends BasicStatisti
         HyperEstimator hyperEstimator = new HyperEstimator() {
             @Override
             Model hyperFit(Estimator estimator, Dataset training, Map params, ParamMap[] paramGrid, Map tuningParams) {
-                Class evaluatorClass = (Class) tuningParams.get("evaluatorClass");
-                Evaluator evaluator = (Evaluator) ReflectUtil.newInstance(evaluatorClass);
-                populateParams(evaluator,null,params);
+                Evaluator evaluator = buildEvaluator(tuningParams, params);
                 TrainValidationSplit trainValidationSplit = new TrainValidationSplit()
                         .setEstimator(estimator)
                         .setEvaluator(evaluator)
                         .setEstimatorParamMaps(paramGrid)
                         .setTrainRatio((double) tuningParams.get("trainRatio"))  // 70% for training and the remaining 20% for validation
-                        .setParallelism(4);  // Evaluate up to 2 parameter settings in parallel
+                        .setParallelism(8);  // Evaluate up to 2 parameter settings in parallel
 
                 // Run train validation split, and choose the best set of parameters.
                 TrainValidationSplitModel splitModel = trainValidationSplit.fit(training);
@@ -302,5 +308,12 @@ public class SparkML<E extends Estimator, M extends Model> extends BasicStatisti
             stack.push((T) value);
         });
         builder.addGrid(param, stack);
+    }
+
+    private static Evaluator buildEvaluator(Map tuningParams, Map params) {
+        Class evaluatorClass = (Class) tuningParams.get("evaluatorClass");
+        Evaluator evaluator = (Evaluator) ReflectUtil.newInstance(evaluatorClass);
+        populateParams(evaluator,null, params);
+        return evaluator;
     }
 }

@@ -1,6 +1,7 @@
 package com.ibda.spark.regression;
 
 import com.ibda.util.FilePathUtil;
+import org.apache.spark.ml.evaluation.RegressionEvaluator;
 import org.apache.spark.ml.regression.LinearRegression;
 import org.apache.spark.ml.regression.LinearRegressionModel;
 
@@ -24,5 +25,21 @@ public class LinearRegressionTest extends SparkRegressionTest<LinearRegression, 
                 new String[]{"gender"},
                 "car");
         loadDataSet(FilePathUtil.getAbsolutePath("data/car_decision_tree.csv", false), "csv");
+    }
+
+    @Override
+    public void testValidationSplitTuning() throws IOException {
+        testTuning(false, RegressionEvaluator.class);
+    }
+
+    @Override
+    public void testCrossValidationTuning() throws IOException {
+        testTuning(true,RegressionEvaluator.class);
+    }
+
+    @Override
+    protected void initTuningGrid() {
+        tuningParamGrid.put("regParam",new Double[]{0.3d,0.4d,0.5d});
+        tuningParamGrid.put("elasticNetParam",new Double[]{0d,0.05d,0.1d});
     }
 }

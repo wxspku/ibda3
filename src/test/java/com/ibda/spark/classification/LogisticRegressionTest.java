@@ -4,6 +4,10 @@ import com.ibda.spark.regression.ModelColumns;
 import com.ibda.util.FilePathUtil;
 import org.apache.spark.ml.classification.LogisticRegression;
 import org.apache.spark.ml.classification.LogisticRegressionModel;
+import org.apache.spark.ml.evaluation.BinaryClassificationEvaluator;
+import org.apache.spark.ml.evaluation.MulticlassClassificationEvaluator;
+
+import java.io.IOException;
 
 public class LogisticRegressionTest extends SparkClassificationTest<LogisticRegression, LogisticRegressionModel> {
 
@@ -36,5 +40,20 @@ public class LogisticRegressionTest extends SparkClassificationTest<LogisticRegr
         trainingParams.put("threshold", 0.5);
         trainingParams.put("regParam", 0.1);
         trainingParams.put("elasticNetParam", 0.8);
+    }
+
+    protected void initTuningGrid() {
+        tuningParamGrid.put("regParam",new Double[]{0.05,0.1d,0.15d});
+        tuningParamGrid.put("elasticNetParam",new Double[]{0.05,0.1d,0.15d});
+    }
+
+    @Override
+    public void testValidationSplitTuning() throws IOException {
+        testTuning(false, BinaryClassificationEvaluator.class);
+    }
+
+    @Override
+    public void testCrossValidationTuning() throws IOException {
+        testTuning(true,BinaryClassificationEvaluator.class);
     }
 }

@@ -2,6 +2,7 @@ package com.ibda.spark.clustering;
 
 import org.apache.spark.ml.clustering.BisectingKMeans;
 import org.apache.spark.ml.clustering.BisectingKMeansModel;
+import org.apache.spark.ml.evaluation.ClusteringEvaluator;
 
 import java.io.IOException;
 
@@ -30,5 +31,22 @@ public class BisectingKMeansTest extends SparkClusteringTest<BisectingKMeans, Bi
     @Override
     public void test02MachineLearning() throws IOException {
         super.test02MachineLearning();
+    }
+
+    @Override
+    public void testValidationSplitTuning() throws IOException {
+        loadTest02Data();
+        super.testValidationSplitTuning();
+    }
+
+    @Override
+    public void testCrossValidationTuning() throws IOException {
+        loadTest02Data();
+        super.testCrossValidationTuning();
+    }
+
+    protected void initTuningGrid() {
+        tuningParamGrid.put("k",new Integer[]{4,6,8});
+        tuningParamGrid.put("distanceMeasure",new String[]{"euclidean" , "cosine"});
     }
 }

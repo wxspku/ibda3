@@ -3,20 +3,14 @@ package com.ibda.spark.clustering;
 import com.ibda.spark.SparkMLTest;
 import com.ibda.spark.regression.ModelColumns;
 import com.ibda.spark.regression.SparkHyperModel;
-import com.ibda.spark.statistics.DescriptiveStatistics;
-import com.ibda.util.AnalysisConst;
 import com.ibda.util.FilePathUtil;
 import org.apache.spark.ml.Estimator;
 import org.apache.spark.ml.Model;
-import org.apache.spark.ml.PredictionModel;
-import org.apache.spark.ml.linalg.Vector;
-import org.apache.spark.ml.regression.IsotonicRegressionModel;
+import org.apache.spark.ml.evaluation.ClusteringEvaluator;
 import org.apache.spark.sql.Column;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
-import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema;
 import org.apache.spark.sql.functions;
-import org.junit.Test;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -71,6 +65,11 @@ public abstract class SparkClusteringTest<E extends Estimator, M extends Model> 
         //训练
         System.out.println("训练聚类模型：" + estimatorClass.getSimpleName() + "/" + modelClass.getSimpleName());
         SparkHyperModel<M> hyperModel = sparkLearning.fit(datasets[0], modelColumns, pipelineModel, trainingParams);
+        evaluatingPredicting(hyperModel);
+    }
+
+    @Override
+    protected void evaluatingPredicting(SparkHyperModel hyperModel) throws IOException {
         System.out.println("训练模型结果及性能\n:" + hyperModel);
         if (hyperModel.getPredictions() != null) {
             hyperModel.getPredictions().show();
@@ -90,5 +89,19 @@ public abstract class SparkClusteringTest<E extends Estimator, M extends Model> 
         SparkHyperModel<M> loadedModel = SparkHyperModel.loadFromModelFile(modelPath, modelClass);
         Map<String, Object> metrics2 = loadedModel.evaluate(datasets[0], modelColumns, pipelineModel);
         System.out.println("评估存储模型性能\n:" + metrics2);
+    }
+
+    @Override
+    public void testValidationSplitTuning() throws IOException {
+        testTuning(false, ClusteringEvaluator.class);
+    }
+
+    @Override
+    public void testCrossValidationTuning() throws IOException {
+        testTuning(true,ClusteringEvaluator.class);
+    }
+
+    protected void initTuningGrid() {
+
     }
 }

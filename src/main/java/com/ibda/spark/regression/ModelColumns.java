@@ -8,8 +8,10 @@ import org.apache.spark.ml.PipelineStage;
 import org.apache.spark.ml.evaluation.RegressionEvaluator;
 import org.apache.spark.ml.feature.*;
 import org.apache.spark.mllib.evaluation.RegressionMetrics;
+import org.apache.spark.sql.Column;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
+import org.apache.spark.sql.functions;
 
 import java.io.Serializable;
 import java.lang.reflect.Method;
@@ -29,6 +31,7 @@ public class ModelColumns implements Serializable {
     private static final String IMPUTED_SUFFIX = "_imputed";
     public static final String PCA_SUFFIX = "_pca";
     public static final String SCALED_SUFFIX = "_scaled";
+    public static final String TOTAL_CATEGORY_COUNT = "total_category_count";
 
     public static ModelColumns MODEL_COLUMNS_DEFAULT =  new ModelColumns();
 
@@ -180,6 +183,14 @@ public class ModelColumns implements Serializable {
      * @return
      */
     public PipelineModel fit(Dataset<Row> trainingData, boolean scaleByMinMax) {
+        //计算最后的总特征数,非分类特征直接计算，分类特征按照OneHotEncoder,dropLast计算
+        long total_features_count = 0;
+        if (categoryFeatures != null) {
+            total_features_count = countDistinctCategoryFeatures(trainingData).get(TOTAL_CATEGORY_COUNT)-categoryFeatures.length;
+        }
+        if (noneCategoryFeatures != null) {
+            total_features_count = total_features_count + noneCategoryFeatures.length;
+        }
         //StringIndexer的fit样本自动编码 alphabetAsc
         List<PipelineStage> stageList = new ArrayList<PipelineStage>();
         if (stringCategoryFeatures != null) {
@@ -276,14 +287,15 @@ public class ModelColumns implements Serializable {
             stageList.add(scaler);
             featuresCol = outputCol;
         }
-        //PCA TODO 如何设置合理的K
-        /*String outputCol = featuresCol + PCA_SUFFIX;
+        //PCA TODO 如何设置合理的K,暂时不降维，但转换为全垂直的变量
+        String outputCol = featuresCol + PCA_SUFFIX;
         PCA pca = new PCA()
                 .setInputCol(featuresCol)
                 .setOutputCol(outputCol)
-                .setK(40);
+                .setK((int)total_features_count);
         featuresCol = outputCol;
-        stageList.add(pca);*/
+        stageList.add(pca);
+
         PipelineStage[] stages = new PipelineStage[stageList.size()];
         stageList.toArray(stages);
         Pipeline pipeline = new Pipeline().setStages(stages);
@@ -320,5 +332,34 @@ public class ModelColumns implements Serializable {
         return result;
     }
 
+    /**
+     * 计算各分类字段的取值数量，总和的key为total_category_count
+     * @param dataset
+     * @return
+     */
+    public Map<String,Long> countDistinctCategoryFeatures(Dataset<Row> dataset){
+        Map<String,Long> countMap = new HashMap<>();
+        if (categoryFeatures != null && categoryFeatures.length > 0) {
+            List<Column> list = new ArrayList<>();
+            Arrays.stream(categoryFeatures).forEach(column->{
+                list.add(functions.countDistinct(column).name(column));
+            });
+            Column[] countColumns = new Column[list.size()];
+            list.toArray(countColumns);
+            Dataset<Row> countDataset = null;
+            if (countColumns.length == 1) {
+                countDataset = dataset.agg(countColumns[0]);
+            } else {
+                countDataset = dataset.agg(countColumns[0],ArrayUtils.subarray(countColumns, 1, countColumns.length));
+            }
+            Row row = countDataset.first();
+            Arrays.stream(categoryFeatures).forEach(column->{
+                countMap.put(column,row.getAs(column));
+            });
+        }
+        long total_category_count = countMap.values().stream().mapToLong(count -> count).sum();
+        countMap.put(TOTAL_CATEGORY_COUNT,total_category_count);
+        return countMap;
+    }
 
 }

@@ -584,6 +584,13 @@
             </Attribute>
           </value>
         </entry>
+        <entry key="\src\test\resources\data\ships_glm.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
         <entry key="\src\test\resources\data\short_row.csv">
           <value>
             <Attribute>

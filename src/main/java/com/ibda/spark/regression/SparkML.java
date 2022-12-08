@@ -52,11 +52,13 @@ public class SparkML<E extends Estimator, M extends Model> extends BasicStatisti
             //泛型E的class
             E estimator = (E) ReflectUtil.newInstance(eClass);
             //paramGrid和params重名时，以paramGrid为准，去除params中的同名参数
-            paramGrid.keySet().stream().forEach(key->{
-                if (params.containsKey(key)){
-                    params.remove(key);
-                }
-            });
+            if (paramGrid != null && !paramGrid.isEmpty()){
+                paramGrid.keySet().stream().forEach(key->{
+                    if (params.containsKey(key)){
+                        params.remove(key);
+                    }
+                });
+            }
             populateParams(estimator, modelCols, params);
             ParamMap[] hyperGrid = buildParamGrid(estimator, paramGrid);
             M model = hyperFit(estimator, training, params, hyperGrid, tuningParams);

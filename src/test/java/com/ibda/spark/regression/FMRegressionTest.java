@@ -45,6 +45,15 @@ public class FMRegressionTest extends SparkRegressionTest<FMRegressor, FMRegress
                 "car");
         loadDataSet(FilePathUtil.getAbsolutePath("data/car_decision_tree.csv", false), "csv");
     }
+
+    @Override
+    protected void initTuningGrid() {
+        /*tuningParamGrid.put("solver",new String[]{"gd", "adamW"});
+        tuningParamGrid.put("factorSize", new Integer[]{4,8,16});
+        tuningParamGrid.put("regParam",new Double[]{0d,0.05d,0.1d,0.2d});*/
+        tuningParamGrid.put("miniBatchFraction",new Double[]{0.70d,0.75d,0.8d});
+        tuningParamGrid.put("stepSize",new Double[]{1.5d,2d,2.5d});
+    }
     //@Test
     public void testFMRegression() {
         SparkSession spark = SparkUtil.buildSparkSession("FMRegressionTest");

@@ -103,7 +103,7 @@ public abstract class SparkMLTest<E extends Estimator, M extends Model> {
 
     protected void evaluatingPredicting(SparkHyperModel<M> hyperModel) throws IOException {
         System.out.println("训练模型结果及性能\n:" + hyperModel);
-        if (hyperModel.getPredictions() != null) {
+         if (hyperModel.getPredictions() != null) {
             hyperModel.getPredictions().show();
         }
         //评估

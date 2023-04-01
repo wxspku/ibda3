@@ -35,10 +35,10 @@ public abstract class SparkRegressionTest<E extends Estimator, M extends Model> 
     @Override
     protected void loadTest01Data() {
         modelColumns = new ModelColumns(
-                new String[]{"zprice","zwheelba"},//"price","wheelbas", "engine_s", "horsepow", "wheelbas", "width", "length", "curb_wgt", "fuel_cap", "mpg"
+                new String[]{"price", "engine_s", "horsepow", "wheelbas", "width", "length", "curb_wgt", "fuel_cap", "mpg"},//"zprice","zwheelba"
                 new String[]{"type","manufact"},//new String[]{"type","manufact","model"},
                 new String[]{"manufact"},//,"model"
-                "sales");//lnsales
+                "lnsales");//sales
         loadDataSet(FilePathUtil.getAbsolutePath("data/car_sales_linear.csv", false), "csv");
     }
 
@@ -78,7 +78,7 @@ public abstract class SparkRegressionTest<E extends Estimator, M extends Model> 
 
     @Override
     public void testValidationSplitTuning() throws IOException {
-        this.loadTest03Data();
+        //this.loadTest03Data();
         testTuning(false, RegressionEvaluator.class);
     }
 
@@ -89,7 +89,7 @@ public abstract class SparkRegressionTest<E extends Estimator, M extends Model> 
 */
     @Override
     public void testCrossValidationTuning() throws IOException {
-        this.loadTest03Data();
+        //this.loadTest03Data();
         testTuning(true,RegressionEvaluator.class);
     }
 

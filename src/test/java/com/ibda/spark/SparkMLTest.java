@@ -121,7 +121,7 @@ public abstract class SparkMLTest<E extends Estimator, M extends Model> {
 
         //预测单个数据
         if (hyperModel.getModel() instanceof PredictionModel) {
-            Row[] rows = (Row[]) predicted.select(modelColumns.getFeaturesCol()).head(20);
+            Row[] rows = (Row[])predicted.select(modelColumns.getFeaturesCol()).head(20);
             Arrays.stream(rows).forEach(row -> {
                 GenericRowWithSchema gRow = (GenericRowWithSchema) row;
                 Vector data = (Vector) gRow.values()[0];
@@ -178,7 +178,6 @@ public abstract class SparkMLTest<E extends Estimator, M extends Model> {
         if (tuningParamGrid.isEmpty()) {
             throw new RuntimeException("未设置候选参数,无法进行调优训练！");
         }
-        ;
         //训练
         SparkHyperModel<M> hyperModel = null;
         if (crossValidation) {

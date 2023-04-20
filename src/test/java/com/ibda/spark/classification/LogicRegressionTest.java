@@ -103,7 +103,7 @@ public class LogicRegressionTest {
         predicted.show();
 
         //预测单个数据
-        Row[] rows = (Row[]) predicted.select("regression_features_vector").head(20);
+        Row[] rows = (Row[])predicted.select("regression_features_vector").head(20);
         Arrays.stream(rows).forEach(row -> {
             GenericRowWithSchema gRow = (GenericRowWithSchema) row;
             DenseVector data = (DenseVector) gRow.values()[0];

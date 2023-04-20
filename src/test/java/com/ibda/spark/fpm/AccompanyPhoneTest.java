@@ -27,8 +27,8 @@ public class AccompanyPhoneTest extends SparkMLTest<FPGrowth, FPGrowthModel> {
                 .option("dbtable", "card_acc_hd")
                 .option("user", "efence_user")
                 .option("password", "EFence!@#456")
-                .option("numPartitions", "4")
                 .option("partitionColumn", "id")
+                .option("numPartitions", 4)
                 .option("lowerBound", 1)
                 .option("upperBound", 13989)
                 .load();

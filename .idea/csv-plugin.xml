@@ -3,6 +3,13 @@
   <component name="CsvFileAttributes">
     <option name="attributeMap">
       <map>
+        <entry key="\output\telco_extra_cluster.csv\part-00000-f7e3552d-cbfb-499a-bb40-bccc8cb2b010-c000.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
         <entry key="\src\main\resources\data\10001_columns.csv">
           <value>
             <Attribute>
@@ -445,6 +452,13 @@
           </value>
         </entry>
         <entry key="\src\test\resources\data\car_sales_linear.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\src\test\resources\data\cereal_multinomial.csv">
           <value>
             <Attribute>
               <option name="separator" value="," />

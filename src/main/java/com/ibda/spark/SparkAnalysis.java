@@ -66,7 +66,25 @@ public class SparkAnalysis extends AnalysisConst {
         return SparkUtil.loadExcel(spark,path,ddl,sheetIndex,range);
     }
 
-
+    /**
+     * 加载jdbc数据集
+     * @param params jdbc相关参数，常见参数如下，更多参数可参见spark相关文档
+         .option("url", "jdbc:mysql://serverName:3306/dbname?useUnicode=true&autoReconnect=true&failOverReadOnly=false")
+         .option("dbtable", "...")
+         .option("user", "...")
+         .option("password", "...")
+         .option("partitionColumn", "...")
+         .option("numPartitions", "...")
+         .option("lowerBound", "...")
+         .option("upperBound", "...")
+     * @return
+     */
+    public Dataset<Row> loadJdbc(Map<String,String> params){
+        return spark.read()
+                .format("jdbc")
+                .options(params)
+                .load();
+    }
     /**
      *
      * @param source
@@ -133,6 +151,8 @@ public class SparkAnalysis extends AnalysisConst {
     public static Dataset<Row> processMissing(Dataset<Row> source, String[] columns, OutlierProcessMethod method, double sampleRemoveRatioThreshold, double featureRemoveRatioThreshold){
         return source;
     }
+
+
 
     @Override
     protected void finalize() throws Throwable {

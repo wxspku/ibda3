@@ -3,6 +3,7 @@ package com.ibda.spark.util;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.spark.ml.feature.VectorAssembler;
 import org.apache.spark.sql.*;
+import scala.collection.mutable.HashTable;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -70,13 +71,18 @@ public class SparkUtil {
      */
     public static SparkSession buildSparkSession(String appName) {
         // 添加spark运行必须的系统参数
-        //-Dspark.master=local  -Dspark.submit.deployMode=client  -Dspark.executor.instances=3 */
+        /*for (Map.Entry entry:System.getProperties().entrySet()){
+            System.out.println(entry.getKey() + "=" + entry.getValue());
+        }
+        //-Dspark.master=local  -Dspark.submit.deployMode=client  -Dspark.executor.instances=3
         if (System.getProperty("spark.master") == null){
-            System.setProperty("spark.master","local[4]");
+            System.out.println("未检测到spark.master参数，缺省使用local[*]-------------");
+            System.setProperty("spark.master","local[*]");
         }
         if (System.getProperty("spark.submit.deployMode") == null){
+            System.out.println("未检测到spark.submit.deployMode参数，缺省使用client-------------");
             System.setProperty("spark.submit.deployMode","client");
-        }
+        }*/
         SparkSession spark = SparkSession
                 .builder()
                 .appName(appName)

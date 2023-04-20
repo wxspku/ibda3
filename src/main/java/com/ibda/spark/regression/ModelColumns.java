@@ -312,11 +312,11 @@ public class ModelColumns implements Serializable {
      * @return
      */
     public Dataset<Row> transform(Dataset<Row> source,PipelineModel model){
-        String[] columns = source.columns();
         Dataset<Row> result = source;
         if (model == null){
             return result;
         }
+        String[] columns = source.columns();
         if (!ArrayUtils.contains(columns, featuresCol)){
             result = model.transform(source);
         }

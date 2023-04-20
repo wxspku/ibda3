@@ -8,6 +8,7 @@ import org.apache.spark.ml.Model;
 import org.apache.spark.ml.PipelineModel;
 import org.apache.spark.ml.PredictionModel;
 import org.apache.spark.ml.evaluation.Evaluator;
+import org.apache.spark.ml.fpm.FPGrowth;
 import org.apache.spark.ml.linalg.Vector;
 import org.apache.spark.ml.param.BooleanParam;
 import org.apache.spark.ml.param.Param;
@@ -50,13 +51,11 @@ public class SparkML<E extends Estimator, M extends Model> extends BasicStatisti
             //预处理
             Dataset<Row> training = modelCols.transform(trainingData, preProcessModel);
             //泛型E的class
-            E estimator = (E) ReflectUtil.newInstance(eClass);
+            E estimator = ReflectUtil.newInstance(eClass);
             //paramGrid和params重名时，以paramGrid为准，去除params中的同名参数
             if (paramGrid != null && !paramGrid.isEmpty()){
                 paramGrid.keySet().stream().forEach(key->{
-                    if (params.containsKey(key)){
-                        params.remove(key);
-                    }
+                    params.remove(key);
                 });
             }
             populateParams(estimator, modelCols, params);
@@ -113,7 +112,7 @@ public class SparkML<E extends Estimator, M extends Model> extends BasicStatisti
      * @return
      */
     public SparkHyperModel<M> fit(Dataset<Row> trainingData, ModelColumns modelCols, Map<String, Object> params) {
-        PipelineModel preProcessModel = modelCols.fit(trainingData);
+        PipelineModel preProcessModel = (eClass.equals(FPGrowth.class))?null:modelCols.fit(trainingData);
         return fit(trainingData, modelCols, preProcessModel, params);
     }
 
@@ -305,11 +304,13 @@ public class SparkML<E extends Estimator, M extends Model> extends BasicStatisti
 
     private static <T> void populateParamGrid(ParamGridBuilder builder, String parent, Map.Entry<String, Object[]> entry, Class<T> clazz) {
         Param<T> param = new Param<>(parent, entry.getKey(), null);
-        scala.collection.mutable.Stack<T> stack = new scala.collection.mutable.Stack<>(entry.getValue().length);
-        Arrays.stream(entry.getValue()).forEach(value -> {
+        Object[] entryValue = entry.getValue();
+        int len = entryValue.length;
+        /*scala.collection.mutable.Stack<T> stack = new scala.collection.mutable.Stack<>();
+        Arrays.stream(entryValue).forEach(value -> {
             stack.push((T) value);
         });
-        builder.addGrid(param, stack);
+        builder.addGrid(param, stack);*/
     }
 
     private static Evaluator buildEvaluator(Map tuningParams, Map params) {

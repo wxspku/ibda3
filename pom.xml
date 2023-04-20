@@ -58,16 +58,19 @@
         <!-- https://mvnrepository.com/artifact/org.apache.spark/spark-mllib -->
         <dependency>
             <groupId>org.apache.spark</groupId>
-            <artifactId>spark-mllib_2.13</artifactId>
-            <version>3.3.0</version>
+            <artifactId>spark-mllib_2.12</artifactId>
+            <version>3.3.2</version>
         </dependency>
+
         <!-- https://mvnrepository.com/artifact/com.crealytics/spark-excel -->
         <dependency>
             <groupId>com.crealytics</groupId>
-            <artifactId>spark-excel_2.13</artifactId>
-            <version>3.2.2_0.18.0</version>
+            <artifactId>spark-excel_2.12</artifactId>
+            <version>3.3.1_0.18.7</version>
         </dependency>
-        <!-- spss statistics plugin, must preserve in original path-->
+
+
+        <!-- spss statistics plugin, must preserve in original path
         <dependency>
             <groupId>com.ibm.statistics.plugin</groupId>
             <artifactId>spss_statistics</artifactId>
@@ -75,6 +78,7 @@
             <systemPath>D:/Program Files/IBM/SPSS/Statistics/24/spssjavaplugin.jar</systemPath>
             <scope>system</scope>
         </dependency>
+        -->
         <!-- https://mvnrepository.com/artifact/cn.hutool/hutool-all -->
         <dependency>
             <groupId>cn.hutool</groupId>
@@ -99,6 +103,37 @@
     </dependencies>
     <build>
         <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-assembly-plugin</artifactId>
+                <version>2.5.5</version>
+                <configuration>
+                    <descriptors>
+                        <descriptor>src/main/assembly/assembly.xml</descriptor>
+                    </descriptors>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>make-assembly</id>
+                        <phase>install</phase>
+                        <goals>
+                            <goal>single</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <version>3.0.2</version>
+                <configuration>
+                    <excludes>
+                        <!--以类路径目录为基础-->
+                        <exclude>/data/**</exclude>
+                    </excludes>
+                </configuration>
+            </plugin>
+
             <plugin>
                 <groupId>org.scala-tools</groupId>
                 <artifactId>maven-scala-plugin</artifactId>

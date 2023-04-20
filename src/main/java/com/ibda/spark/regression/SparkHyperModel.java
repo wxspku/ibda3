@@ -32,6 +32,7 @@ import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
 import scala.Some;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
 import java.lang.reflect.InvocationTargetException;
@@ -193,6 +194,10 @@ public class SparkHyperModel<M extends Model> implements Serializable {
      */
     public void saveModel(String path) throws IOException {
         if (model instanceof MLWritable) {
+            File file = new File(path);
+            if (!file.exists()) {
+                file.mkdirs();
+            }
             ((MLWritable) model).write().overwrite().save(path);
             return;
         }
@@ -240,7 +245,7 @@ public class SparkHyperModel<M extends Model> implements Serializable {
             if (model instanceof RegressionModel) {
                 metrics.putAll(getRegressionMetrics(modelCols, predictions));
             }
-            metrics.putAll(this.buildMetrics(summary));
+            metrics.putAll(buildMetrics(summary));
 
         } else {
             Dataset<Row> evaluated = model.transform(testing);
@@ -252,7 +257,7 @@ public class SparkHyperModel<M extends Model> implements Serializable {
                 evaluator.setPredictionCol(modelCols.predictCol);
                 evaluator.setProbabilityCol(modelCols.probabilityCol);
                 MulticlassMetrics classificationMetrics = evaluator.getMetrics(evaluated);
-                metrics.putAll(this.buildMetrics(classificationMetrics));
+                metrics.putAll(buildMetrics(classificationMetrics));
             } else if (model instanceof RegressionModel || model instanceof IsotonicRegressionModel ||
                         model instanceof ALSModel) {
                 metrics.putAll(getRegressionMetrics(modelCols, evaluated));
@@ -474,7 +479,7 @@ public class SparkHyperModel<M extends Model> implements Serializable {
                     metrics.put("confusionMatrix", confusionMatrix);
                 } else if (name.equals("residuals")) {
                     Dataset<Row> residuals = (Dataset<Row>) performance;
-                    Row[] minMax = (Row[]) residuals.select("residuals").summary("min", "max").take(2);
+                    Row[] minMax = (Row[])residuals.select("residuals").summary("min", "max").take(2);
                     metrics.put("residuals_min", minMax[0].get(1));
                     metrics.put("residuals_max", minMax[1].get(1));
                 }

@@ -217,7 +217,7 @@ public class DecisionTreeClassificationTest extends SparkClassificationTest<Deci
         predicted.show();
 
         //预测单个数据
-        Row[] rows = (Row[]) predicted.select("regression_features_vector").head(20);
+        Row[] rows = (Row[])predicted.select("regression_features_vector").head(20);
         Arrays.stream(rows).forEach(row -> {
             GenericRowWithSchema gRow = (GenericRowWithSchema) row;
             Vector data = (Vector) gRow.values()[0];
@@ -289,7 +289,7 @@ public class DecisionTreeClassificationTest extends SparkClassificationTest<Deci
         predicted.show();
 
         //预测单个数据
-        Row[] rows = (Row[]) predicted.select("regression_features_vector").head(20);
+        Row[] rows = (Row[])predicted.select("regression_features_vector").head(20);
         Arrays.stream(rows).forEach(row -> {
             GenericRowWithSchema gRow = (GenericRowWithSchema) row;
             Vector data = (Vector) gRow.values()[0];
